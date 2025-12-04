@@ -837,15 +837,6 @@
             invisibleActive: false,
             reflectActive: false
         };
-        
-        // Safe Room Configuration
-        const SAFE_ROOM = {
-            x: -ARENA_SIZE + 20,
-            z: 0,
-            width: 18,
-            depth: 18,
-            height: 8
-        };
 
         // ===== THREE.JS SETUP =====
         const scene = new THREE.Scene();
@@ -889,6 +880,15 @@
         const levelObjects = [];
         const traps = [];
         const ARENA_SIZE = 70;
+        
+        // Safe Room Configuration
+        const SAFE_ROOM = {
+            x: -ARENA_SIZE + 20,
+            z: 0,
+            width: 18,
+            depth: 18,
+            height: 8
+        };
 
         function generateLevel(level) {
             levelObjects.forEach(obj => scene.remove(obj));
@@ -1778,7 +1778,27 @@
             }
             
             const q = shuffledQuestions[questionIndex++];
-            gameState.currentQuestion = q;
+            
+            // Shuffle the answers while tracking correct one
+            const correctAnswer = q.a[q.c];
+            const shuffledAnswers = [...q.a];
+            
+            // Fisher-Yates shuffle for answers
+            for (let i = shuffledAnswers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledAnswers[i], shuffledAnswers[j]] = [shuffledAnswers[j], shuffledAnswers[i]];
+            }
+            
+            // Find new index of correct answer
+            const newCorrectIndex = shuffledAnswers.indexOf(correctAnswer);
+            
+            // Store current question with shuffled answers
+            gameState.currentQuestion = {
+                q: q.q,
+                a: shuffledAnswers,
+                c: newCorrectIndex,
+                cat: q.cat
+            };
             
             // Show different category text for safe room
             if (fromSafeRoom) {
@@ -1794,7 +1814,7 @@
             const options = document.getElementById('optionsContainer');
             options.innerHTML = '';
             
-            q.a.forEach((answer, idx) => {
+            shuffledAnswers.forEach((answer, idx) => {
                 const btn = document.createElement('button');
                 btn.className = 'option-button';
                 btn.textContent = answer;
