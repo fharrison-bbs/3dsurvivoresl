@@ -519,6 +519,64 @@
             letter-spacing: 4px;
         }
         
+        #safeRoomIndicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -80%);
+            background: linear-gradient(135deg, rgba(0, 100, 50, 0.95), rgba(0, 150, 80, 0.9));
+            border: 3px solid #0f8;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            z-index: 20;
+            display: none;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 255, 100, 0.4);
+        }
+        
+        #safeRoomIndicator.show {
+            display: block;
+        }
+        
+        #safeRoomIndicator .subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        #answerInSafeRoom {
+            position: absolute;
+            bottom: 240px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle at 30% 30%, rgba(0, 200, 100, 0.6), rgba(0, 150, 80, 0.4));
+            border: 4px solid #0f8;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 15;
+            color: #0f8;
+            text-shadow: 0 0 10px #0f8;
+            box-shadow: 0 0 25px rgba(0, 255, 100, 0.5);
+            touch-action: none;
+        }
+        
+        #answerInSafeRoom.show {
+            display: flex;
+        }
+        
+        #answerInSafeRoom .icon {
+            font-size: 28px;
+        }
+        
         #restartBtn {
             margin-top: 20px;
             padding: 14px 35px;
@@ -673,6 +731,18 @@
         </div>
         <div id="questionButton">❓</div>
         
+        <!-- Safe Room Answer Button -->
+        <div id="answerInSafeRoom">
+            <span class="icon">📚</span>
+            <span>STUDY</span>
+        </div>
+        
+        <!-- Safe Room Indicator -->
+        <div id="safeRoomIndicator">
+            🏠 SAFE ROOM
+            <div class="subtitle">Tap 📚 to answer questions safely!</div>
+        </div>
+        
         <!-- Question Modal -->
         <div id="questionModal">
             <div id="questionContainer">
@@ -751,6 +821,8 @@
             currentQuestion: null,
             gameOver: false,
             pauseStartTime: 0,
+            inSafeRoom: false,
+            safeRoomMode: false, // Question asked from safe room
             // Powerup effects
             shieldActive: false,
             speedMultiplier: 1,
@@ -764,6 +836,15 @@
             doubleJumpActive: false,
             invisibleActive: false,
             reflectActive: false
+        };
+        
+        // Safe Room Configuration
+        const SAFE_ROOM = {
+            x: -ARENA_SIZE + 20,
+            z: 0,
+            width: 18,
+            depth: 18,
+            height: 8
         };
 
         // ===== THREE.JS SETUP =====
@@ -876,6 +957,106 @@
                 scene.add(pillar);
                 levelObjects.push(pillar);
             }
+            
+            // ===== SAFE ROOM =====
+            createSafeRoom();
+        }
+        
+        function createSafeRoom() {
+            const sr = SAFE_ROOM;
+            
+            // Safe room floor (glowing green)
+            const floorMat = new THREE.MeshStandardMaterial({ 
+                color: 0x004422, 
+                emissive: 0x00ff66, 
+                emissiveIntensity: 0.15,
+                roughness: 0.3
+            });
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(sr.width, sr.depth), floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.set(sr.x, 0.1, sr.z);
+            scene.add(floor);
+            levelObjects.push(floor);
+            
+            // Safe room walls
+            const wallMat = new THREE.MeshStandardMaterial({ 
+                color: 0x00aa66, 
+                emissive: 0x00ff88, 
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            // Back wall
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(sr.width, sr.height, 0.5), wallMat);
+            backWall.position.set(sr.x, sr.height / 2, sr.z - sr.depth / 2);
+            scene.add(backWall);
+            levelObjects.push(backWall);
+            
+            // Left wall
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, sr.height, sr.depth), wallMat);
+            leftWall.position.set(sr.x - sr.width / 2, sr.height / 2, sr.z);
+            scene.add(leftWall);
+            levelObjects.push(leftWall);
+            
+            // Right wall (partial - with entrance)
+            const rightWallTop = new THREE.Mesh(new THREE.BoxGeometry(0.5, sr.height - 4, sr.depth), wallMat);
+            rightWallTop.position.set(sr.x + sr.width / 2, sr.height - 2, sr.z);
+            scene.add(rightWallTop);
+            levelObjects.push(rightWallTop);
+            
+            // Front wall left
+            const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry((sr.width - 6) / 2, sr.height, 0.5), wallMat);
+            frontWallLeft.position.set(sr.x - sr.width / 4 - 1.5, sr.height / 2, sr.z + sr.depth / 2);
+            scene.add(frontWallLeft);
+            levelObjects.push(frontWallLeft);
+            
+            // Front wall right
+            const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry((sr.width - 6) / 2, sr.height, 0.5), wallMat);
+            frontWallRight.position.set(sr.x + sr.width / 4 + 1.5, sr.height / 2, sr.z + sr.depth / 2);
+            scene.add(frontWallRight);
+            levelObjects.push(frontWallRight);
+            
+            // Entrance arch top
+            const archMat = new THREE.MeshStandardMaterial({ 
+                color: 0x00ffaa, 
+                emissive: 0x00ff88, 
+                emissiveIntensity: 0.5
+            });
+            const arch = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 0.5), archMat);
+            arch.position.set(sr.x, sr.height - 0.5, sr.z + sr.depth / 2);
+            scene.add(arch);
+            levelObjects.push(arch);
+            
+            // Safe room sign
+            const signMat = new THREE.MeshStandardMaterial({ 
+                color: 0x00ff88, 
+                emissive: 0x00ff88, 
+                emissiveIntensity: 0.8
+            });
+            const sign = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 0.2), signMat);
+            sign.position.set(sr.x, sr.height + 1, sr.z + sr.depth / 2);
+            scene.add(sign);
+            levelObjects.push(sign);
+            
+            // Glowing orbs inside safe room
+            const orbMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
+            for (let i = 0; i < 4; i++) {
+                const orb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), orbMat);
+                orb.position.set(
+                    sr.x + (i % 2 === 0 ? -4 : 4),
+                    5,
+                    sr.z + (i < 2 ? -4 : 4)
+                );
+                scene.add(orb);
+                levelObjects.push(orb);
+            }
+            
+            // Point light inside safe room
+            const safeLight = new THREE.PointLight(0x00ff88, 0.8, 25);
+            safeLight.position.set(sr.x, 5, sr.z);
+            scene.add(safeLight);
+            levelObjects.push(safeLight);
         }
 
         function createTrap() {
@@ -1011,29 +1192,40 @@
                 enemy.healthBar.material.color.setHex(hp > 0.5 ? 0x00ff00 : (hp > 0.25 ? 0xffff00 : 0xff0000));
                 enemy.healthBar.lookAt(camera.position);
 
-                // Movement
+                // Movement - enemies avoid safe room
                 const dir = new THREE.Vector3().subVectors(camera.position, enemy.position);
                 dir.y = 0;
+                
+                // Check if enemy would enter safe room
+                const nextPos = enemy.position.clone().addScaledVector(dir.clone().normalize(), enemy.speed);
+                const inSafeZone = isInSafeRoom(nextPos);
                 
                 if (enemy.enemyType.ranged) {
                     const dist = dir.length();
                     if (dist < 12) dir.negate();
-                    else if (dist > 20) {
+                    else if (dist > 20 && !inSafeZone) {
                         dir.normalize();
                         enemy.position.addScaledVector(dir, enemy.speed);
                     }
                     enemy.fireTimer++;
-                    if (enemy.fireTimer >= enemy.enemyType.fireRate) {
+                    if (enemy.fireTimer >= enemy.enemyType.fireRate && !gameState.inSafeRoom) {
                         enemy.fireTimer = 0;
                         createEnemyProjectile(enemy.position.clone(), camera.position.clone());
                     }
                 } else {
-                    dir.normalize();
-                    enemy.position.addScaledVector(dir, enemy.speed);
+                    // Only move if not entering safe room
+                    if (!inSafeZone) {
+                        dir.normalize();
+                        enemy.position.addScaledVector(dir, enemy.speed);
+                    } else {
+                        // Move around safe room
+                        const avoidDir = new THREE.Vector3(enemy.position.x - SAFE_ROOM.x, 0, enemy.position.z - SAFE_ROOM.z).normalize();
+                        enemy.position.addScaledVector(avoidDir, enemy.speed * 0.5);
+                    }
                 }
 
-                // Player collision
-                if (enemy.position.distanceTo(camera.position) < enemy.hitRadius + 0.8) {
+                // Player collision - not in safe room
+                if (!gameState.inSafeRoom && enemy.position.distanceTo(camera.position) < enemy.hitRadius + 0.8) {
                     if (!gameState.shieldActive) {
                         gameState.health -= enemy.damage * 0.08;
                         showDamageFlash();
@@ -1046,7 +1238,7 @@
                 enemy.rotation.y += 0.015;
             });
 
-            // Enemy projectiles
+            // Enemy projectiles - blocked by safe room
             enemyProjectiles.forEach((proj, idx) => {
                 proj.position.add(proj.velocity);
                 proj.life--;
@@ -1057,13 +1249,20 @@
                     return;
                 }
 
+                // Projectiles can't enter safe room
+                if (isInSafeRoom(proj.position)) {
+                    createParticleBurst(proj.position, 0x00ff88, 8);
+                    scene.remove(proj);
+                    enemyProjectiles.splice(idx, 1);
+                    return;
+                }
+
                 if (proj.position.distanceTo(camera.position) < 1.2) {
-                    if (!gameState.shieldActive) {
+                    if (!gameState.shieldActive && !gameState.inSafeRoom) {
                         gameState.health -= 6;
                         showDamageFlash();
                     }
                     if (gameState.reflectActive) {
-                        // Reflect back!
                         proj.velocity.negate();
                         proj.life = 100;
                         proj.reflected = true;
@@ -1088,6 +1287,32 @@
             // Spawn enemies
             const maxEnemies = 3 + gameState.level * 2;
             if (enemies.length < maxEnemies && Math.random() > 0.985) createEnemy();
+        }
+        
+        // Check if a position is inside the safe room
+        function isInSafeRoom(pos) {
+            const sr = SAFE_ROOM;
+            return pos.x > sr.x - sr.width / 2 && 
+                   pos.x < sr.x + sr.width / 2 && 
+                   pos.z > sr.z - sr.depth / 2 && 
+                   pos.z < sr.z + sr.depth / 2;
+        }
+        
+        // Update safe room status
+        function updateSafeRoomStatus() {
+            const wasInSafeRoom = gameState.inSafeRoom;
+            gameState.inSafeRoom = isInSafeRoom(camera.position);
+            
+            const indicator = document.getElementById('safeRoomIndicator');
+            const studyBtn = document.getElementById('answerInSafeRoom');
+            
+            if (gameState.inSafeRoom) {
+                indicator.classList.add('show');
+                studyBtn.classList.add('show');
+            } else {
+                indicator.classList.remove('show');
+                studyBtn.classList.remove('show');
+            }
         }
 
         function createEnemyProjectile(from, to) {
@@ -1537,11 +1762,12 @@
         }
 
         // ===== QUESTION SYSTEM =====
-        function showQuestion() {
+        function showQuestion(fromSafeRoom = false) {
             if (gameState.questionActive || gameState.gameOver) return;
             gameState.questionActive = true;
             gameState.paused = true;
             gameState.pauseStartTime = Date.now();
+            gameState.safeRoomMode = fromSafeRoom;
             
             // Show paused overlay
             document.getElementById('pausedOverlay').classList.add('show');
@@ -1554,7 +1780,13 @@
             const q = shuffledQuestions[questionIndex++];
             gameState.currentQuestion = q;
             
-            document.getElementById('questionCategory').textContent = q.cat;
+            // Show different category text for safe room
+            if (fromSafeRoom) {
+                document.getElementById('questionCategory').textContent = '📚 SAFE ROOM STUDY - ' + q.cat;
+            } else {
+                document.getElementById('questionCategory').textContent = q.cat;
+            }
+            
             document.getElementById('questionText').textContent = q.q;
             document.getElementById('feedback').textContent = '';
             document.getElementById('feedback').className = '';
@@ -1576,6 +1808,7 @@
         function checkAnswer(idx) {
             const q = gameState.currentQuestion;
             const correct = idx === q.c;
+            const inSafeRoom = gameState.safeRoomMode;
             
             document.querySelectorAll('.option-button').forEach((btn, i) => {
                 btn.disabled = true;
@@ -1586,19 +1819,32 @@
             const feedback = document.getElementById('feedback');
             if (correct) {
                 let bonus = 50 + gameState.streak * 10;
-                feedback.textContent = `✓ Correct! +25 Ammo, +${bonus} Score`;
+                if (inSafeRoom) {
+                    feedback.textContent = `✓ Correct! +25 Ammo, +${bonus} Score (Safe Room Bonus!)`;
+                } else {
+                    feedback.textContent = `✓ Correct! +25 Ammo, +${bonus} Score`;
+                }
                 feedback.className = 'correct';
                 gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 25);
                 gameState.correct++;
                 gameState.score += bonus;
                 gameState.streak++;
                 
-                const offset = new THREE.Vector3((Math.random()-0.5)*8, 0, (Math.random()-0.5)*8);
-                spawnPowerup(camera.position.clone().add(offset));
+                // Only spawn powerup if not in safe room (they have to go get it!)
+                if (!inSafeRoom) {
+                    const offset = new THREE.Vector3((Math.random()-0.5)*8, 0, (Math.random()-0.5)*8);
+                    spawnPowerup(camera.position.clone().add(offset));
+                } else {
+                    // In safe room, spawn powerup just outside
+                    const offset = new THREE.Vector3(15, 0, (Math.random()-0.5)*10);
+                    spawnPowerup(camera.position.clone().add(offset));
+                }
             } else {
-                feedback.textContent = '✗ Wrong! -20 Health';
+                // Reduced penalty in safe room: -10 instead of -20
+                const healthPenalty = inSafeRoom ? 10 : 20;
+                feedback.textContent = `✗ Wrong! -${healthPenalty} Health${inSafeRoom ? ' (Reduced in Safe Room)' : ''}`;
                 feedback.className = 'incorrect';
-                gameState.health -= 20;
+                gameState.health -= healthPenalty;
                 gameState.wrong++;
                 gameState.streak = 0;
                 showDamageFlash();
@@ -1608,6 +1854,7 @@
                 document.getElementById('questionModal').classList.remove('active');
                 document.getElementById('pausedOverlay').classList.remove('show');
                 gameState.questionActive = false;
+                gameState.safeRoomMode = false;
                 
                 // Adjust powerup timers for pause duration
                 const pauseDuration = Date.now() - gameState.pauseStartTime;
@@ -1750,11 +1997,20 @@
         document.getElementById('questionButton').addEventListener('touchstart', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            showQuestion();
+            showQuestion(false);
+        }, { passive: false });
+        
+        // Safe room study button
+        document.getElementById('answerInSafeRoom').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (gameState.inSafeRoom) {
+                showQuestion(true); // true = from safe room
+            }
         }, { passive: false });
 
         // Prevent default on all buttons
-        ['shootButton', 'bombButton', 'questionButton'].forEach(id => {
+        ['shootButton', 'bombButton', 'questionButton', 'answerInSafeRoom'].forEach(id => {
             const el = document.getElementById(id);
             el.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
         });
@@ -1771,6 +2027,23 @@
             
             const scale = 90 / (ARENA_SIZE * 2);
             const ox = 45, oy = 45;
+            
+            // Safe room
+            minimapCtx.fillStyle = 'rgba(0, 255, 100, 0.3)';
+            minimapCtx.fillRect(
+                (SAFE_ROOM.x - SAFE_ROOM.width/2) * scale + ox,
+                (SAFE_ROOM.z - SAFE_ROOM.depth/2) * scale + oy,
+                SAFE_ROOM.width * scale,
+                SAFE_ROOM.depth * scale
+            );
+            minimapCtx.strokeStyle = '#00ff88';
+            minimapCtx.lineWidth = 1;
+            minimapCtx.strokeRect(
+                (SAFE_ROOM.x - SAFE_ROOM.width/2) * scale + ox,
+                (SAFE_ROOM.z - SAFE_ROOM.depth/2) * scale + oy,
+                SAFE_ROOM.width * scale,
+                SAFE_ROOM.depth * scale
+            );
             
             // Traps
             traps.forEach(t => {
@@ -1797,14 +2070,14 @@
             });
             
             // Player
-            minimapCtx.fillStyle = '#00ffff';
+            minimapCtx.fillStyle = gameState.inSafeRoom ? '#00ff88' : '#00ffff';
             minimapCtx.beginPath();
             minimapCtx.arc(camera.position.x * scale + ox, camera.position.z * scale + oy, 4, 0, Math.PI * 2);
             minimapCtx.fill();
             
             // Direction
             const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-            minimapCtx.strokeStyle = '#00ffff';
+            minimapCtx.strokeStyle = gameState.inSafeRoom ? '#00ff88' : '#00ffff';
             minimapCtx.lineWidth = 2;
             minimapCtx.beginPath();
             minimapCtx.moveTo(camera.position.x * scale + ox, camera.position.z * scale + oy);
@@ -1898,6 +2171,7 @@
             updateTraps();
             updateShieldVisual();
             updateMinimap();
+            updateSafeRoomStatus();
             checkLevelProgress();
 
             // UI
