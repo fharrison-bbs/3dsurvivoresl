@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ESL Powerup Arena v2</title>
+    <title>ESL Powerup Arena v3 - Neon Overload</title>
     <style>
         * {
             margin: 0;
@@ -112,6 +112,13 @@
             text-shadow: 0 0 15px #f60;
             box-shadow: 0 0 30px rgba(255, 100, 0, 0.4), inset 0 -5px 20px rgba(0, 0, 0, 0.3);
             touch-action: none;
+        }
+        
+        #shootButton.disabled {
+            filter: grayscale(1);
+            opacity: 0.5;
+            border-color: #555;
+            background: rgba(50,50,50,0.5);
         }
         
         #shootButton:active {
@@ -278,6 +285,28 @@
         }
         
         #powerupNotification.show { opacity: 1; }
+
+        #warningNotification {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(50, 0, 0, 0.9);
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: 2px solid #f00;
+            font-size: 16px;
+            font-weight: bold;
+            color: #f00;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px #f00;
+        }
+        
+        #warningNotification.show { opacity: 1; }
         
         /* ===== QUESTION MODAL ===== */
         #questionModal {
@@ -547,6 +576,13 @@
             margin-top: 5px;
         }
         
+        #safeRoomIndicator .warning {
+            color: #fca;
+            font-size: 10px;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+        
         #answerInSafeRoom {
             position: absolute;
             bottom: 240px;
@@ -645,6 +681,7 @@
         <div id="damageFlash"></div>
         <div id="levelIndicator">LEVEL 1</div>
         <div id="powerupNotification"></div>
+        <div id="warningNotification"></div>
         
         <!-- Paused Overlay -->
         <div id="pausedOverlay">
@@ -741,6 +778,7 @@
         <div id="safeRoomIndicator">
             🏠 SAFE ROOM
             <div class="subtitle">Tap 📚 to answer questions safely!</div>
+            <div class="warning">🚫 WEAPONS DISABLED</div>
         </div>
         
         <!-- Question Modal -->
@@ -822,7 +860,7 @@
             gameOver: false,
             pauseStartTime: 0,
             inSafeRoom: false,
-            safeRoomMode: false, // Question asked from safe room
+            safeRoomMode: false,
             // Powerup effects
             shieldActive: false,
             speedMultiplier: 1,
@@ -835,13 +873,16 @@
             homingActive: false,
             doubleJumpActive: false,
             invisibleActive: false,
-            reflectActive: false
+            reflectActive: false,
+            titanMode: false,
+            blackHoleActive: false,
+            godBeamActive: false
         };
 
         // ===== THREE.JS SETUP =====
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0a0a1a);
-        scene.fog = new THREE.FogExp2(0x0a0a1a, 0.012);
+        scene.background = new THREE.Color(0x050510);
+        scene.fog = new THREE.FogExp2(0x050510, 0.015);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 3, 0);
@@ -858,10 +899,10 @@
         renderer.domElement.style.zIndex = '1';
 
         // ===== LIGHTING =====
-        const ambientLight = new THREE.AmbientLight(0x4466aa, 0.5);
+        const ambientLight = new THREE.AmbientLight(0x6644aa, 0.6);
         scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const directionalLight = new THREE.DirectionalLight(0xff00ff, 0.8);
         directionalLight.position.set(30, 50, 30);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
@@ -872,7 +913,7 @@
         pointLight1.position.set(-25, 10, -25);
         scene.add(pointLight1);
 
-        const pointLight2 = new THREE.PointLight(0xff00ff, 0.6, 60);
+        const pointLight2 = new THREE.PointLight(0xff0088, 0.6, 60);
         pointLight2.position.set(25, 10, 25);
         scene.add(pointLight2);
 
@@ -890,6 +931,8 @@
             height: 8
         };
 
+        let gridHelper;
+
         function generateLevel(level) {
             levelObjects.forEach(obj => scene.remove(obj));
             levelObjects.length = 0;
@@ -897,30 +940,35 @@
             traps.length = 0;
 
             // Ground
-            const groundGeom = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2, 30, 30);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, roughness: 0.8 });
+            const groundGeom = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2, 40, 40);
+            const groundMat = new THREE.MeshStandardMaterial({ 
+                color: 0x0a0a1a, 
+                roughness: 0.4,
+                metalness: 0.6
+            });
             const ground = new THREE.Mesh(groundGeom, groundMat);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             scene.add(ground);
             levelObjects.push(ground);
 
-            // Grid
-            const grid = new THREE.GridHelper(ARENA_SIZE * 2, 30, 0x00ffff, 0x002244);
-            grid.position.y = 0.05;
-            scene.add(grid);
-            levelObjects.push(grid);
+            // Neon Grid
+            if (gridHelper) scene.remove(gridHelper);
+            gridHelper = new THREE.GridHelper(ARENA_SIZE * 2, 60, 0xff00ff, 0x220044);
+            gridHelper.position.y = 0.05;
+            scene.add(gridHelper);
+            levelObjects.push(gridHelper);
 
             // Walls
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x2244aa, emissive: 0x001144, emissiveIntensity: 0.3 });
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x220044, emissive: 0x220066, emissiveIntensity: 0.4, metalness: 0.8, roughness: 0.2 });
             [
                 { x: 0, z: -ARENA_SIZE, ry: 0 },
                 { x: 0, z: ARENA_SIZE, ry: 0 },
                 { x: -ARENA_SIZE, z: 0, ry: Math.PI/2 },
                 { x: ARENA_SIZE, z: 0, ry: Math.PI/2 }
             ].forEach(p => {
-                const wall = new THREE.Mesh(new THREE.BoxGeometry(ARENA_SIZE * 2, 10, 2), wallMat);
-                wall.position.set(p.x, 5, p.z);
+                const wall = new THREE.Mesh(new THREE.BoxGeometry(ARENA_SIZE * 2, 12, 2), wallMat);
+                wall.position.set(p.x, 6, p.z);
                 wall.rotation.y = p.ry;
                 wall.castShadow = true;
                 scene.add(wall);
@@ -928,31 +976,42 @@
             });
 
             // Obstacles
-            const obsMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.6 });
-            for (let i = 0; i < 4 + level * 2; i++) {
-                const s = 2 + Math.random() * 3;
-                const h = 2 + Math.random() * 5;
+            const obsMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.3, metalness: 0.7 });
+            const obsEmissive = new THREE.MeshStandardMaterial({ color: 0x000, emissive: 0x00ffff, emissiveIntensity: 0.8 });
+            
+            for (let i = 0; i < 6 + level * 2; i++) {
+                const s = 3 + Math.random() * 4;
+                const h = 4 + Math.random() * 8;
                 const geom = [
                     new THREE.BoxGeometry(s, h, s),
                     new THREE.CylinderGeometry(s/2, s/2, h, 8),
                     new THREE.ConeGeometry(s/2, h, 6)
                 ][Math.floor(Math.random() * 3)];
+                
                 const obs = new THREE.Mesh(geom, obsMat);
-                obs.position.set((Math.random() - 0.5) * (ARENA_SIZE - 15), h/2, (Math.random() - 0.5) * (ARENA_SIZE - 15));
+                obs.position.set((Math.random() - 0.5) * (ARENA_SIZE - 20), h/2, (Math.random() - 0.5) * (ARENA_SIZE - 20));
+                
+                // Add neon trim
+                if (Math.random() > 0.5) {
+                    const trim = new THREE.Mesh(new THREE.BoxGeometry(s + 0.1, 0.2, s + 0.1), obsEmissive);
+                    trim.position.y = Math.random() * h/2;
+                    obs.add(trim);
+                }
+
                 obs.castShadow = true;
                 scene.add(obs);
                 levelObjects.push(obs);
             }
 
             // Traps
-            for (let i = 0; i < Math.min(level + 1, 5); i++) createTrap();
+            for (let i = 0; i < Math.min(level + 1, 6); i++) createTrap();
 
             // Glowing pillars
-            const pillarMat = new THREE.MeshStandardMaterial({ color: 0x00ffaa, emissive: 0x00ff88, emissiveIntensity: 0.6 });
-            for (let i = 0; i < 4; i++) {
-                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 12, 8), pillarMat);
-                const angle = (i / 4) * Math.PI * 2;
-                pillar.position.set(Math.cos(angle) * (ARENA_SIZE - 12), 6, Math.sin(angle) * (ARENA_SIZE - 12));
+            const pillarMat = new THREE.MeshStandardMaterial({ color: 0x00ffaa, emissive: 0x00ff88, emissiveIntensity: 0.8, transparent: true, opacity: 0.8 });
+            for (let i = 0; i < 6; i++) {
+                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 20, 8), pillarMat);
+                const angle = (i / 6) * Math.PI * 2;
+                pillar.position.set(Math.cos(angle) * (ARENA_SIZE - 15), 10, Math.sin(angle) * (ARENA_SIZE - 15));
                 pillar.castShadow = true;
                 scene.add(pillar);
                 levelObjects.push(pillar);
@@ -960,8 +1019,28 @@
             
             // ===== SAFE ROOM =====
             createSafeRoom();
+            
+            // Atmospheric Particles
+            createDust();
         }
         
+        let dustSystem;
+        function createDust() {
+            if (dustSystem) scene.remove(dustSystem);
+            const geom = new THREE.BufferGeometry();
+            const counts = 1000;
+            const positions = new Float32Array(counts * 3);
+            for(let i=0; i<counts*3; i+=3) {
+                positions[i] = (Math.random() - 0.5) * ARENA_SIZE * 2;
+                positions[i+1] = Math.random() * 20;
+                positions[i+2] = (Math.random() - 0.5) * ARENA_SIZE * 2;
+            }
+            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const mat = new THREE.PointsMaterial({ color: 0x88aaff, size: 0.15, transparent: true, opacity: 0.6 });
+            dustSystem = new THREE.Points(geom, mat);
+            scene.add(dustSystem);
+        }
+
         function createSafeRoom() {
             const sr = SAFE_ROOM;
             
@@ -969,7 +1048,7 @@
             const floorMat = new THREE.MeshStandardMaterial({ 
                 color: 0x004422, 
                 emissive: 0x00ff66, 
-                emissiveIntensity: 0.15,
+                emissiveIntensity: 0.2,
                 roughness: 0.3
             });
             const floor = new THREE.Mesh(new THREE.PlaneGeometry(sr.width, sr.depth), floorMat);
@@ -984,7 +1063,8 @@
                 emissive: 0x00ff88, 
                 emissiveIntensity: 0.3,
                 transparent: true,
-                opacity: 0.7
+                opacity: 0.4,
+                wireframe: false
             });
             
             // Back wall
@@ -1017,43 +1097,19 @@
             scene.add(frontWallRight);
             levelObjects.push(frontWallRight);
             
-            // Entrance arch top
-            const archMat = new THREE.MeshStandardMaterial({ 
-                color: 0x00ffaa, 
-                emissive: 0x00ff88, 
-                emissiveIntensity: 0.5
-            });
-            const arch = new THREE.Mesh(new THREE.BoxGeometry(6, 1, 0.5), archMat);
-            arch.position.set(sr.x, sr.height - 0.5, sr.z + sr.depth / 2);
-            scene.add(arch);
-            levelObjects.push(arch);
-            
             // Safe room sign
             const signMat = new THREE.MeshStandardMaterial({ 
                 color: 0x00ff88, 
                 emissive: 0x00ff88, 
-                emissiveIntensity: 0.8
+                emissiveIntensity: 1
             });
             const sign = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 0.2), signMat);
             sign.position.set(sr.x, sr.height + 1, sr.z + sr.depth / 2);
             scene.add(sign);
             levelObjects.push(sign);
             
-            // Glowing orbs inside safe room
-            const orbMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
-            for (let i = 0; i < 4; i++) {
-                const orb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), orbMat);
-                orb.position.set(
-                    sr.x + (i % 2 === 0 ? -4 : 4),
-                    5,
-                    sr.z + (i < 2 ? -4 : 4)
-                );
-                scene.add(orb);
-                levelObjects.push(orb);
-            }
-            
             // Point light inside safe room
-            const safeLight = new THREE.PointLight(0x00ff88, 0.8, 25);
+            const safeLight = new THREE.PointLight(0x00ff88, 1, 25);
             safeLight.position.set(sr.x, 5, sr.z);
             scene.add(safeLight);
             levelObjects.push(safeLight);
@@ -1066,7 +1122,7 @@
             trap.position.set((Math.random() - 0.5) * (ARENA_SIZE - 25), 0.1, (Math.random() - 0.5) * (ARENA_SIZE - 25));
             
             const spikes = new THREE.Group();
-            const spikeMat = new THREE.MeshStandardMaterial({ color: 0xaa0033 });
+            const spikeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xaa0000, emissiveIntensity: 0.5 });
             for (let i = 0; i < 6; i++) {
                 const spike = new THREE.Mesh(new THREE.ConeGeometry(0.25, 1.2, 4), spikeMat);
                 const angle = (i / 6) * Math.PI * 2;
@@ -1096,7 +1152,7 @@
 
                 if (trap.active) {
                     trap.spikes.position.y = Math.min(trap.spikes.position.y + 0.25, 0.6);
-                    if (trap.spikes.position.y >= 0.5 && dist < 3.5 && !gameState.shieldActive) {
+                    if (trap.spikes.position.y >= 0.5 && dist < 3.5 && !gameState.shieldActive && !gameState.titanMode) {
                         gameState.health -= 0.8;
                         showDamageFlash();
                     }
@@ -1117,6 +1173,8 @@
             FAST: { name: 'Fast', color: 0xffff00, health: 8, speed: 0.08, damage: 1, size: { w: 0.8, h: 1.6, d: 0.8 }, score: 150, hitRadius: 1.3 },
             TANK: { name: 'Tank', color: 0x8844ff, health: 45, speed: 0.018, damage: 6, size: { w: 2, h: 2.8, d: 2 }, score: 250, hitRadius: 2.5 },
             RANGED: { name: 'Ranged', color: 0x00ff88, health: 12, speed: 0.022, damage: 4, size: { w: 1.1, h: 2.4, d: 1.1 }, score: 200, ranged: true, fireRate: 100, hitRadius: 1.7 },
+            GHOST: { name: 'Ghost', color: 0x88aaff, health: 10, speed: 0.04, damage: 3, size: { w: 1, h: 2, d: 1 }, score: 180, ghost: true, hitRadius: 1.5, opacity: 0.4 },
+            KAMIKAZE: { name: 'Kamikaze', color: 0xff0000, health: 5, speed: 0.12, damage: 25, size: { w: 0.7, h: 0.7, d: 0.7 }, score: 300, kamikaze: true, hitRadius: 1.0 },
             BOSS: { name: 'Boss', color: 0xff00ff, health: 120, speed: 0.028, damage: 10, size: { w: 3.5, h: 4.5, d: 3.5 }, score: 1000, hitRadius: 4 }
         };
 
@@ -1124,15 +1182,23 @@
             if (!type) {
                 const rand = Math.random();
                 const lvl = gameState.level;
-                if (rand < 0.35) type = ENEMY_TYPES.BASIC;
-                else if (rand < 0.55) type = ENEMY_TYPES.FAST;
-                else if (rand < 0.75 && lvl >= 2) type = ENEMY_TYPES.TANK;
-                else if (rand < 0.9 && lvl >= 2) type = ENEMY_TYPES.RANGED;
+                if (rand < 0.30) type = ENEMY_TYPES.BASIC;
+                else if (rand < 0.50) type = ENEMY_TYPES.FAST;
+                else if (rand < 0.65 && lvl >= 2) type = ENEMY_TYPES.TANK;
+                else if (rand < 0.80 && lvl >= 2) type = ENEMY_TYPES.RANGED;
+                else if (rand < 0.90 && lvl >= 3) type = ENEMY_TYPES.GHOST;
+                else if (lvl >= 3) type = ENEMY_TYPES.KAMIKAZE;
                 else type = ENEMY_TYPES.BASIC;
             }
 
-            const geom = new THREE.BoxGeometry(type.size.w, type.size.h, type.size.d);
-            const mat = new THREE.MeshStandardMaterial({ color: type.color, emissive: type.color, emissiveIntensity: 0.35 });
+            const geom = type.kamikaze ? new THREE.SphereGeometry(type.size.w/2, 16, 16) : new THREE.BoxGeometry(type.size.w, type.size.h, type.size.d);
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: type.color, 
+                emissive: type.color, 
+                emissiveIntensity: 0.4,
+                transparent: type.ghost || false,
+                opacity: type.opacity || 1
+            });
             const enemy = new THREE.Mesh(geom, mat);
             enemy.castShadow = true;
 
@@ -1155,7 +1221,7 @@
             enemy.add(healthBar);
             enemy.healthBar = healthBar;
 
-            // Hitbox helper (invisible but used for collision)
+            // Hitbox helper
             enemy.boundingBox = new THREE.Box3();
 
             scene.add(enemy);
@@ -1166,9 +1232,17 @@
 
         function updateEnemies() {
             enemies.forEach((enemy, idx) => {
-                // Update bounding box for collision
                 enemy.boundingBox.setFromObject(enemy);
                 
+                // Titan Mode Stomp
+                if (gameState.titanMode) {
+                    const distToPlayer = enemy.position.distanceTo(new THREE.Vector3(camera.position.x, enemy.position.y, camera.position.z));
+                    if (distToPlayer < 4) {
+                        enemy.health = 0; // Trampled
+                        createParticleBurst(enemy.position, 0xff0000, 10);
+                    }
+                }
+
                 if (enemy.health <= 0) {
                     createExplosion(enemy.position, enemy.enemyType.color, 18);
                     if (!enemy.hasDropped) {
@@ -1179,27 +1253,35 @@
                     enemies.splice(idx, 1);
                     gameState.score += enemy.enemyType.score * gameState.damageMultiplier;
                     
-                    // Vampire healing
                     if (gameState.vampireActive) {
                         gameState.health = Math.min(gameState.maxHealth, gameState.health + 5);
                     }
                     return;
                 }
 
-                // Health bar update
+                // Health bar
                 const hp = enemy.health / enemy.maxHealth;
                 enemy.healthBar.scale.x = hp;
                 enemy.healthBar.material.color.setHex(hp > 0.5 ? 0x00ff00 : (hp > 0.25 ? 0xffff00 : 0xff0000));
                 enemy.healthBar.lookAt(camera.position);
 
-                // Movement - enemies avoid safe room
+                // Movement
                 const dir = new THREE.Vector3().subVectors(camera.position, enemy.position);
                 dir.y = 0;
                 
-                // Check if enemy would enter safe room
                 const nextPos = enemy.position.clone().addScaledVector(dir.clone().normalize(), enemy.speed);
                 const inSafeZone = isInSafeRoom(nextPos);
                 
+                // Black Hole Pull
+                if (gameState.blackHoleActive && blackHoleMesh) {
+                    const pullDir = new THREE.Vector3().subVectors(blackHoleMesh.position, enemy.position).normalize();
+                    enemy.position.addScaledVector(pullDir, 0.3); // Get sucked in
+                    
+                    if (enemy.position.distanceTo(blackHoleMesh.position) < 2) {
+                        enemy.health -= 5; // Crushed
+                    }
+                }
+
                 if (enemy.enemyType.ranged) {
                     const dist = dir.length();
                     if (dist < 12) dir.negate();
@@ -1212,33 +1294,44 @@
                         enemy.fireTimer = 0;
                         createEnemyProjectile(enemy.position.clone(), camera.position.clone());
                     }
+                } else if (enemy.enemyType.kamikaze) {
+                    if (!inSafeZone) {
+                        dir.normalize();
+                        enemy.position.addScaledVector(dir, enemy.speed);
+                        enemy.material.emissiveIntensity = 0.5 + Math.sin(Date.now() * 0.02) * 0.5; // Pulse rapidly
+                    }
                 } else {
-                    // Only move if not entering safe room
                     if (!inSafeZone) {
                         dir.normalize();
                         enemy.position.addScaledVector(dir, enemy.speed);
                     } else {
-                        // Move around safe room
                         const avoidDir = new THREE.Vector3(enemy.position.x - SAFE_ROOM.x, 0, enemy.position.z - SAFE_ROOM.z).normalize();
                         enemy.position.addScaledVector(avoidDir, enemy.speed * 0.5);
                     }
                 }
 
-                // Player collision - not in safe room
+                // Collision
                 if (!gameState.inSafeRoom && enemy.position.distanceTo(camera.position) < enemy.hitRadius + 0.8) {
-                    if (!gameState.shieldActive) {
+                    if (enemy.enemyType.kamikaze) {
+                        // Explode
+                        enemy.health = 0;
+                        createExplosion(enemy.position, 0xff0000, 40);
+                        if (!gameState.shieldActive && !gameState.titanMode) {
+                            gameState.health -= enemy.damage;
+                            showDamageFlash();
+                        }
+                    } else if (!gameState.shieldActive && !gameState.titanMode) {
                         gameState.health -= enemy.damage * 0.08;
                         showDamageFlash();
                     }
-                    if (gameState.reflectActive) {
-                        enemy.health -= 3;
-                    }
+                    
+                    if (gameState.reflectActive) enemy.health -= 3;
                 }
 
                 enemy.rotation.y += 0.015;
             });
 
-            // Enemy projectiles - blocked by safe room
+            // Projectiles logic
             enemyProjectiles.forEach((proj, idx) => {
                 proj.position.add(proj.velocity);
                 proj.life--;
@@ -1249,7 +1342,6 @@
                     return;
                 }
 
-                // Projectiles can't enter safe room
                 if (isInSafeRoom(proj.position)) {
                     createParticleBurst(proj.position, 0x00ff88, 8);
                     scene.remove(proj);
@@ -1258,7 +1350,7 @@
                 }
 
                 if (proj.position.distanceTo(camera.position) < 1.2) {
-                    if (!gameState.shieldActive && !gameState.inSafeRoom) {
+                    if (!gameState.shieldActive && !gameState.inSafeRoom && !gameState.titanMode) {
                         gameState.health -= 6;
                         showDamageFlash();
                     }
@@ -1271,8 +1363,7 @@
                         enemyProjectiles.splice(idx, 1);
                     }
                 }
-
-                // Reflected projectiles damage enemies
+                
                 if (proj.reflected) {
                     enemies.forEach(enemy => {
                         if (proj.position.distanceTo(enemy.position) < enemy.hitRadius) {
@@ -1284,12 +1375,10 @@
                 }
             });
 
-            // Spawn enemies
-            const maxEnemies = 3 + gameState.level * 2;
+            const maxEnemies = 4 + gameState.level * 2;
             if (enemies.length < maxEnemies && Math.random() > 0.985) createEnemy();
         }
         
-        // Check if a position is inside the safe room
         function isInSafeRoom(pos) {
             const sr = SAFE_ROOM;
             return pos.x > sr.x - sr.width / 2 && 
@@ -1298,20 +1387,22 @@
                    pos.z < sr.z + sr.depth / 2;
         }
         
-        // Update safe room status
         function updateSafeRoomStatus() {
             const wasInSafeRoom = gameState.inSafeRoom;
             gameState.inSafeRoom = isInSafeRoom(camera.position);
             
             const indicator = document.getElementById('safeRoomIndicator');
             const studyBtn = document.getElementById('answerInSafeRoom');
+            const shootBtn = document.getElementById('shootButton');
             
             if (gameState.inSafeRoom) {
                 indicator.classList.add('show');
                 studyBtn.classList.add('show');
+                shootBtn.classList.add('disabled');
             } else {
                 indicator.classList.remove('show');
                 studyBtn.classList.remove('show');
+                shootBtn.classList.remove('disabled');
             }
         }
 
@@ -1329,116 +1420,80 @@
             enemyProjectiles.push(proj);
         }
 
-        // ===== EXPANDED POWERUP SYSTEM (20 powerups) =====
+        // ===== EXPANDED POWERUP SYSTEM (More Crazy) =====
         const powerupObjects = [];
         const POWERUP_TYPES = [
-            // Health & Resources
-            { name: "❤️ Health +40", color: 0xff4444, rarity: 1,
-                effect: () => { gameState.health = Math.min(gameState.maxHealth, gameState.health + 40); } },
-            { name: "💚 Full Heal", color: 0x00ff00, rarity: 0.3,
-                effect: () => { gameState.health = gameState.maxHealth; } },
-            { name: "🔫 Ammo +20", color: 0xffff00, rarity: 1,
-                effect: () => { gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 20); } },
-            { name: "📦 Max Ammo", color: 0xffaa00, rarity: 0.4,
-                effect: () => { gameState.ammo = gameState.maxAmmo; } },
-            { name: "💣 +2 Bombs", color: 0xff00aa, rarity: 0.6,
-                effect: () => { gameState.bombs = Math.min(gameState.maxBombs, gameState.bombs + 2); } },
+            // Essentials
+            { name: "❤️ Health +40", color: 0xff4444, rarity: 1, effect: () => { gameState.health = Math.min(gameState.maxHealth, gameState.health + 40); } },
+            { name: "🔫 Ammo +20", color: 0xffff00, rarity: 1, effect: () => { gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 20); } },
             
-            // Timed Buffs - Defense
-            { name: "🛡️ Shield", color: 0x4488ff, rarity: 0.7, duration: 10000,
-                effect: () => { 
-                    gameState.shieldActive = true;
-                    addTimedPowerup("🛡️ Shield", 10000, () => { gameState.shieldActive = false; });
-                }},
-            { name: "🪞 Reflect", color: 0xaaaaff, rarity: 0.4, duration: 8000,
-                effect: () => {
-                    gameState.reflectActive = true;
-                    addTimedPowerup("🪞 Reflect", 8000, () => { gameState.reflectActive = false; });
-                }},
-            { name: "👻 Invisibility", color: 0x888888, rarity: 0.3, duration: 6000,
-                effect: () => {
-                    gameState.invisibleActive = true;
-                    addTimedPowerup("👻 Invisible", 6000, () => { gameState.invisibleActive = false; });
-                }},
+            // Defense
+            { name: "🛡️ Shield", color: 0x4488ff, rarity: 0.6, duration: 10000, effect: () => { 
+                gameState.shieldActive = true; addTimedPowerup("🛡️ Shield", 10000, () => { gameState.shieldActive = false; }); }},
             
-            // Timed Buffs - Offense
-            { name: "⚡ Speed x2", color: 0x00ffff, rarity: 0.8, duration: 12000,
-                effect: () => {
-                    gameState.speedMultiplier = 2;
-                    addTimedPowerup("⚡ Speed x2", 12000, () => { gameState.speedMultiplier = 1; });
-                }},
-            { name: "💥 Damage x2", color: 0xff8800, rarity: 0.7, duration: 15000,
-                effect: () => {
-                    gameState.damageMultiplier = 2;
-                    addTimedPowerup("💥 Damage x2", 15000, () => { gameState.damageMultiplier = 1; });
-                }},
-            { name: "🔥 Rapid Fire", color: 0xff4400, rarity: 0.6, duration: 10000,
-                effect: () => {
-                    gameState.fireRateMultiplier = 3;
-                    addTimedPowerup("🔥 Rapid Fire", 10000, () => { gameState.fireRateMultiplier = 1; });
-                }},
-            { name: "💀 Triple Damage", color: 0xaa00aa, rarity: 0.25, duration: 8000,
-                effect: () => {
-                    gameState.damageMultiplier = 3;
-                    addTimedPowerup("💀 Triple Dmg", 8000, () => { gameState.damageMultiplier = 1; });
-                }},
+            // CRAZY POWERUPS
+            { name: "🌌 BLACK HOLE", color: 0xaa00ff, rarity: 0.15, duration: 8000, effect: () => {
+                activateBlackHole();
+            }},
+            { name: "🔱 TITAN MODE", color: 0xffaa00, rarity: 0.1, duration: 15000, effect: () => {
+                gameState.titanMode = true;
+                camera.position.y = 8; // Grow tall
+                addTimedPowerup("🔱 TITAN", 15000, () => { 
+                    gameState.titanMode = false; 
+                    camera.position.y = 3; 
+                });
+            }},
+            { name: "✨ GOD BEAM", color: 0x00ffff, rarity: 0.2, duration: 6000, effect: () => {
+                gameState.godBeamActive = true;
+                addTimedPowerup("✨ BEAM", 6000, () => { gameState.godBeamActive = false; });
+            }},
             
-            // Special Effects
-            { name: "🧲 Magnet", color: 0xffdd00, rarity: 0.5, duration: 15000,
-                effect: () => {
-                    gameState.magnetActive = true;
-                    addTimedPowerup("🧲 Magnet", 15000, () => { gameState.magnetActive = false; });
-                }},
-            { name: "🧛 Vampire", color: 0x880044, rarity: 0.4, duration: 20000,
-                effect: () => {
-                    gameState.vampireActive = true;
-                    addTimedPowerup("🧛 Vampire", 20000, () => { gameState.vampireActive = false; });
-                }},
-            { name: "💢 Explosive", color: 0xff2200, rarity: 0.35, duration: 12000,
-                effect: () => {
-                    gameState.explosiveRoundsActive = true;
-                    addTimedPowerup("💢 Explosive", 12000, () => { gameState.explosiveRoundsActive = false; });
-                }},
-            { name: "🎯 Piercing", color: 0x00ff88, rarity: 0.45, duration: 12000,
-                effect: () => {
-                    gameState.piercingActive = true;
-                    addTimedPowerup("🎯 Piercing", 12000, () => { gameState.piercingActive = false; });
-                }},
-            { name: "🚀 Homing", color: 0xff00ff, rarity: 0.3, duration: 10000,
-                effect: () => {
-                    gameState.homingActive = true;
-                    addTimedPowerup("🚀 Homing", 10000, () => { gameState.homingActive = false; });
-                }},
+            // Enhanced Offense
+            { name: "⚡ Speed x2", color: 0x00ffff, rarity: 0.7, duration: 12000, effect: () => {
+                gameState.speedMultiplier = 2; addTimedPowerup("⚡ Speed", 12000, () => { gameState.speedMultiplier = 1; }); }},
+            { name: "💥 Damage x2", color: 0xff8800, rarity: 0.7, duration: 15000, effect: () => {
+                gameState.damageMultiplier = 2; addTimedPowerup("💥 Damage", 15000, () => { gameState.damageMultiplier = 1; }); }},
+            { name: "🔥 Rapid Fire", color: 0xff4400, rarity: 0.6, duration: 10000, effect: () => {
+                gameState.fireRateMultiplier = 4; addTimedPowerup("🔥 Rapid", 10000, () => { gameState.fireRateMultiplier = 1; }); }},
             
-            // Instant Effects
-            { name: "⭐ Score x2", color: 0xffdd00, rarity: 0.5,
-                effect: () => { gameState.score = Math.floor(gameState.score * 2); } },
-            { name: "💫 Clear Screen", color: 0xffffff, rarity: 0.2,
-                effect: () => {
-                    enemies.forEach(e => {
-                        createExplosion(e.position, e.enemyType.color, 10);
-                        scene.remove(e);
-                    });
-                    enemies.length = 0;
-                    gameState.score += 500;
-                }},
-            { name: "❄️ Freeze All", color: 0x88ffff, rarity: 0.5, duration: 6000,
-                effect: () => {
-                    enemies.forEach(e => { e.originalSpeed = e.speed; e.speed = 0; });
-                    addTimedPowerup("❄️ Freeze", 6000, () => {
-                        enemies.forEach(e => { if (e.originalSpeed) e.speed = e.originalSpeed; });
-                    });
-                }}
+            // Special
+            { name: "🧲 Magnet", color: 0xffdd00, rarity: 0.5, duration: 15000, effect: () => {
+                gameState.magnetActive = true; addTimedPowerup("🧲 Magnet", 15000, () => { gameState.magnetActive = false; }); }},
+            { name: "🚀 Homing", color: 0xff00ff, rarity: 0.3, duration: 10000, effect: () => {
+                gameState.homingActive = true; addTimedPowerup("🚀 Homing", 10000, () => { gameState.homingActive = false; }); }}
         ];
+        
+        let blackHoleMesh = null;
+        function activateBlackHole() {
+            gameState.blackHoleActive = true;
+            blackHoleMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(1, 32, 32),
+                new THREE.MeshBasicMaterial({ color: 0x000000 })
+            );
+            // Accretion disk
+            const disk = new THREE.Mesh(
+                new THREE.RingGeometry(2, 4, 32),
+                new THREE.MeshBasicMaterial({ color: 0xaa00ff, side: THREE.DoubleSide, transparent: true, opacity: 0.8 })
+            );
+            disk.rotation.x = Math.PI / 2;
+            blackHoleMesh.add(disk);
+            
+            blackHoleMesh.position.copy(camera.position).add(new THREE.Vector3(0, 5, -15).applyQuaternion(camera.quaternion));
+            scene.add(blackHoleMesh);
+            
+            addTimedPowerup("🌌 Singularity", 8000, () => { 
+                gameState.blackHoleActive = false; 
+                scene.remove(blackHoleMesh); 
+                blackHoleMesh = null;
+            });
+        }
 
         function addTimedPowerup(name, duration, onEnd) {
-            // Remove existing powerup of same type
             gameState.activePowerups = gameState.activePowerups.filter(p => p.name !== name);
             gameState.activePowerups.push({ name, endTime: Date.now() + duration, onEnd });
         }
 
         function spawnPowerup(position) {
-            // Weighted random selection based on rarity
             const totalWeight = POWERUP_TYPES.reduce((sum, p) => sum + p.rarity, 0);
             let rand = Math.random() * totalWeight;
             let powerup = POWERUP_TYPES[0];
@@ -1448,33 +1503,17 @@
             }
             
             const group = new THREE.Group();
-            
-            // Outer glow
-            const glow = new THREE.Mesh(
-                new THREE.SphereGeometry(0.9, 16, 16),
-                new THREE.MeshBasicMaterial({ color: powerup.color, transparent: true, opacity: 0.25 })
-            );
+            const glow = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 16), new THREE.MeshBasicMaterial({ color: powerup.color, transparent: true, opacity: 0.4 }));
             group.add(glow);
-            
-            // Inner core
-            const core = new THREE.Mesh(
-                new THREE.OctahedronGeometry(0.45, 0),
-                new THREE.MeshStandardMaterial({ color: powerup.color, emissive: powerup.color, emissiveIntensity: 0.9, metalness: 0.9, roughness: 0.1 })
-            );
+            const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), new THREE.MeshStandardMaterial({ color: powerup.color, emissive: powerup.color, emissiveIntensity: 1 }));
             group.add(core);
-            
-            // Ring
-            const ring = new THREE.Mesh(
-                new THREE.TorusGeometry(0.6, 0.08, 8, 16),
-                new THREE.MeshBasicMaterial({ color: powerup.color })
-            );
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.08, 8, 16), new THREE.MeshBasicMaterial({ color: powerup.color }));
             ring.rotation.x = Math.PI / 2;
             group.add(ring);
             
             group.position.copy(position);
             group.position.y = 1.5;
             group.powerupData = powerup;
-            
             scene.add(group);
             powerupObjects.push({ mesh: group, powerup, time: 0 });
         }
@@ -1490,21 +1529,19 @@
             powerupObjects.forEach((obj, idx) => {
                 obj.time++;
                 obj.mesh.rotation.y += 0.05;
-                obj.mesh.children[1].rotation.x += 0.04;
-                obj.mesh.children[2].rotation.z += 0.03;
+                obj.mesh.children[2].rotation.z += 0.05;
                 obj.mesh.position.y = 1.5 + Math.sin(obj.time * 0.07) * 0.35;
 
-                // Magnet effect
-                if (gameState.magnetActive) {
+                if (gameState.magnetActive || gameState.titanMode) {
                     const dir = new THREE.Vector3().subVectors(camera.position, obj.mesh.position);
-                    if (dir.length() < 15) {
+                    if (dir.length() < 20) {
                         dir.normalize();
-                        obj.mesh.position.addScaledVector(dir, 0.15);
+                        obj.mesh.position.addScaledVector(dir, 0.3);
                     }
                 }
 
                 const dist = obj.mesh.position.distanceTo(camera.position);
-                if (dist < 2.8) {
+                if (dist < 3) { // Larger pickup radius
                     obj.powerup.effect();
                     showPowerupNotification(obj.powerup.name);
                     createParticleBurst(obj.mesh.position, obj.powerup.color, 25);
@@ -1512,13 +1549,12 @@
                     powerupObjects.splice(idx, 1);
                 }
 
-                if (obj.time > 700) {
+                if (obj.time > 900) {
                     scene.remove(obj.mesh);
                     powerupObjects.splice(idx, 1);
                 }
             });
 
-            // Update timed powerups
             gameState.activePowerups = gameState.activePowerups.filter(p => {
                 if (p.endTime <= Date.now()) {
                     if (p.onEnd) p.onEnd();
@@ -1526,16 +1562,18 @@
                 }
                 return true;
             });
+            
+            // Animate Black Hole
+            if (gameState.blackHoleActive && blackHoleMesh) {
+                blackHoleMesh.children[0].rotation.z += 0.1; // Rotate disk
+                blackHoleMesh.scale.setScalar(1 + Math.sin(Date.now() * 0.01) * 0.1);
+            }
         }
 
         // ===== PARTICLE SYSTEM =====
         const particles = [];
-
         function createParticle(pos, color, vel, life = 50) {
-            const p = new THREE.Mesh(
-                new THREE.SphereGeometry(0.12, 4, 4),
-                new THREE.MeshBasicMaterial({ color, transparent: true })
-            );
+            const p = new THREE.Mesh(new THREE.SphereGeometry(0.15, 4, 4), new THREE.MeshBasicMaterial({ color, transparent: true }));
             p.position.copy(pos);
             p.velocity = vel;
             p.life = life;
@@ -1546,144 +1584,97 @@
 
         function createParticleBurst(pos, color, count) {
             for (let i = 0; i < count; i++) {
-                createParticle(
-                    pos.clone(),
-                    color,
-                    new THREE.Vector3((Math.random()-0.5)*0.35, Math.random()*0.25, (Math.random()-0.5)*0.35),
-                    35 + Math.random() * 25
-                );
+                createParticle(pos.clone(), color, new THREE.Vector3((Math.random()-0.5)*0.5, Math.random()*0.5, (Math.random()-0.5)*0.5), 40);
             }
         }
 
         function createExplosion(pos, color, count) {
-            for (let i = 0; i < count; i++) {
-                createParticle(
-                    pos.clone(),
-                    color,
-                    new THREE.Vector3((Math.random()-0.5)*0.6, Math.random()*0.5, (Math.random()-0.5)*0.6),
-                    45
-                );
-            }
-            
-            // Shockwave
-            const ring = new THREE.Mesh(
-                new THREE.RingGeometry(0.5, 0.8, 20),
-                new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
-            );
+            createParticleBurst(pos, color, count);
+            const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.8, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
             ring.position.copy(pos);
-            ring.position.y = 0.1;
+            ring.position.y = 1;
             ring.rotation.x = -Math.PI / 2;
             ring.userData = { expanding: true, life: 25 };
             scene.add(ring);
             particles.push(ring);
         }
 
-        function createMuzzleFlash(pos, dir) {
-            for (let i = 0; i < 6; i++) {
-                const vel = dir.clone().multiplyScalar(0.25);
-                vel.x += (Math.random()-0.5)*0.15;
-                vel.y += (Math.random()-0.5)*0.15;
-                vel.z += (Math.random()-0.5)*0.15;
-                createParticle(pos.clone(), 0x00ff00, vel, 12);
-            }
-        }
-
         function updateParticles() {
             particles.forEach((p, idx) => {
                 if (p.userData && p.userData.expanding) {
-                    p.scale.x += 0.6;
-                    p.scale.y += 0.6;
+                    p.scale.x += 0.8;
+                    p.scale.y += 0.8;
                     p.material.opacity -= 0.04;
                     p.userData.life--;
-                    if (p.userData.life <= 0) {
-                        scene.remove(p);
-                        particles.splice(idx, 1);
-                    }
+                    if (p.userData.life <= 0) { scene.remove(p); particles.splice(idx, 1); }
                 } else {
                     p.position.add(p.velocity);
-                    p.velocity.y -= 0.006;
+                    p.velocity.y -= 0.01;
                     p.life--;
                     p.material.opacity = p.life / p.maxLife;
-                    if (p.life <= 0) {
-                        scene.remove(p);
-                        particles.splice(idx, 1);
-                    }
-                }
-            });
-        }
-
-        // ===== BOMB SYSTEM =====
-        const bombs = [];
-
-        function dropBomb() {
-            if (gameState.paused) return; // Don't drop bombs while paused
-            if (gameState.bombs <= 0) return;
-            gameState.bombs--;
-            
-            const bomb = new THREE.Mesh(
-                new THREE.SphereGeometry(0.55, 16, 16),
-                new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0xff0044, emissiveIntensity: 0.6 })
-            );
-            bomb.position.copy(camera.position);
-            bomb.position.y = 0.55;
-            bomb.timer = 100;
-            scene.add(bomb);
-            bombs.push(bomb);
-        }
-
-        function updateBombs() {
-            bombs.forEach((bomb, idx) => {
-                bomb.timer--;
-                bomb.material.emissiveIntensity = 0.6 + Math.sin(bomb.timer * 0.4) * 0.4;
-                bomb.scale.setScalar(1 + Math.sin(bomb.timer * 0.3) * 0.1);
-                
-                if (bomb.timer <= 0) {
-                    createExplosion(bomb.position, 0xff4400, 50);
-                    enemies.forEach(enemy => {
-                        const dist = enemy.position.distanceTo(bomb.position);
-                        if (dist < 14) enemy.health -= 35 * (1 - dist / 14);
-                    });
-                    scene.remove(bomb);
-                    bombs.splice(idx, 1);
+                    if (p.life <= 0) { scene.remove(p); particles.splice(idx, 1); }
                 }
             });
             
-            document.getElementById('bombCount').textContent = `x${gameState.bombs}`;
+            // Update dust
+            if (dustSystem) {
+                dustSystem.rotation.y += 0.0005;
+                const pos = dustSystem.geometry.attributes.position.array;
+                for(let i=1; i<pos.length; i+=3) {
+                    pos[i] -= 0.02;
+                    if(pos[i] < 0) pos[i] = 20;
+                }
+                dustSystem.geometry.attributes.position.needsUpdate = true;
+            }
         }
 
-        // ===== PROJECTILE SYSTEM WITH IMPROVED HITBOXES =====
+        // ===== PROJECTILE SYSTEM =====
         const projectiles = [];
         let lastFireTime = 0;
-        const BASE_FIRE_RATE = 150; // ms between shots
+        const BASE_FIRE_RATE = 150;
 
         function createProjectile() {
-            if (gameState.paused) return; // Don't shoot while paused
-            if (gameState.ammo <= 0) {
+            if (gameState.paused) return;
+            
+            // PREVENT SHOOTING IN SAFE ROOM
+            if (gameState.inSafeRoom) {
+                const warn = document.getElementById('warningNotification');
+                warn.textContent = "🚫 WEAPONS DISABLED IN SAFE ROOM";
+                warn.classList.add('show');
+                setTimeout(() => warn.classList.remove('show'), 1500);
+                return;
+            }
+
+            if (gameState.ammo <= 0 && !gameState.titanMode) { // Titans don't need ammo
                 showQuestion();
                 return;
             }
             
             const now = Date.now();
-            const fireDelay = BASE_FIRE_RATE / gameState.fireRateMultiplier;
+            const fireDelay = gameState.godBeamActive ? 20 : (BASE_FIRE_RATE / gameState.fireRateMultiplier);
             if (now - lastFireTime < fireDelay) return;
             lastFireTime = now;
             
-            gameState.ammo--;
+            if (!gameState.godBeamActive && !gameState.titanMode) gameState.ammo--;
 
+            // Projectile visual
+            const color = gameState.godBeamActive ? 0x00ffff : (gameState.titanMode ? 0xffaa00 : 0x00ff00);
+            const scale = gameState.titanMode ? 0.8 : 0.18;
+            
             const proj = new THREE.Mesh(
-                new THREE.SphereGeometry(0.18, 8, 8),
-                new THREE.MeshBasicMaterial({ color: gameState.explosiveRoundsActive ? 0xff4400 : 0x00ff00 })
+                new THREE.SphereGeometry(scale, 8, 8),
+                new THREE.MeshBasicMaterial({ color: color })
             );
             
             proj.position.copy(camera.position);
-            proj.position.y -= 0.2;
+            proj.position.y -= gameState.titanMode ? 1.0 : 0.2; // Adjust origin based on size
             
             const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-            proj.velocity = forward.clone().multiplyScalar(1);
+            proj.velocity = forward.clone().multiplyScalar(gameState.godBeamActive ? 2.5 : 1.0);
             proj.life = 100;
-            proj.hitEnemies = new Set(); // Track which enemies were hit (for piercing)
+            proj.hitEnemies = new Set();
+            proj.isGodBeam = gameState.godBeamActive;
 
-            createMuzzleFlash(proj.position.clone(), forward);
             scene.add(proj);
             projectiles.push(proj);
         }
@@ -1696,17 +1687,17 @@
 
         function updateProjectiles() {
             projectiles.forEach((proj, idx) => {
-                // Homing behavior
+                // Homing
                 if (gameState.homingActive && enemies.length > 0) {
                     let closest = null;
-                    let closestDist = 30;
+                    let closestDist = 40;
                     enemies.forEach(e => {
                         const d = e.position.distanceTo(proj.position);
                         if (d < closestDist) { closest = e; closestDist = d; }
                     });
                     if (closest) {
                         const dir = new THREE.Vector3().subVectors(closest.position, proj.position).normalize();
-                        proj.velocity.lerp(dir.multiplyScalar(1), 0.08);
+                        proj.velocity.lerp(dir.multiplyScalar(proj.velocity.length()), 0.1);
                     }
                 }
                 
@@ -1719,46 +1710,69 @@
                     return;
                 }
 
-                // IMPROVED HITBOX DETECTION
+                // Check collisions
                 let hitEnemy = null;
                 enemies.forEach(enemy => {
-                    // Use both distance check and bounding box for accuracy
                     const dist = proj.position.distanceTo(enemy.position);
-                    const hitThreshold = enemy.hitRadius;
-                    
-                    // Also check if projectile is within enemy's bounding box
-                    const inBoundingBox = enemy.boundingBox.containsPoint(proj.position);
-                    
-                    if ((dist < hitThreshold || inBoundingBox) && !proj.hitEnemies.has(enemy)) {
+                    if ((dist < enemy.hitRadius || enemy.boundingBox.containsPoint(proj.position)) && !proj.hitEnemies.has(enemy)) {
                         hitEnemy = enemy;
                     }
                 });
 
                 if (hitEnemy) {
-                    const damage = 6 * gameState.damageMultiplier;
+                    const damage = (gameState.titanMode ? 50 : 6) * gameState.damageMultiplier;
                     hitEnemy.health -= damage;
                     proj.hitEnemies.add(hitEnemy);
                     
-                    createParticleBurst(proj.position, 0x00ff00, 10);
+                    createParticleBurst(proj.position, 0x00ff00, 5);
                     showHitMarker();
                     
-                    // Explosive rounds
                     if (gameState.explosiveRoundsActive) {
-                        createExplosion(proj.position, 0xff4400, 15);
+                        createExplosion(proj.position, 0xff4400, 10);
                         enemies.forEach(e => {
-                            if (e !== hitEnemy && e.position.distanceTo(proj.position) < 5) {
-                                e.health -= damage * 0.5;
-                            }
+                            if (e !== hitEnemy && e.position.distanceTo(proj.position) < 5) e.health -= damage * 0.5;
                         });
                     }
                     
-                    // Remove projectile unless piercing
-                    if (!gameState.piercingActive) {
+                    // God Beam and Titan shots pierce everything
+                    if (!gameState.piercingActive && !proj.isGodBeam && !gameState.titanMode) {
                         scene.remove(proj);
                         projectiles.splice(idx, 1);
                     }
                 }
             });
+        }
+        
+        // ===== BOMB SYSTEM =====
+        const bombs = [];
+        function dropBomb() {
+            if (gameState.paused || gameState.inSafeRoom) return;
+            if (gameState.bombs <= 0) return;
+            gameState.bombs--;
+            
+            const bomb = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0xff0044, emissiveIntensity: 1 }));
+            bomb.position.copy(camera.position);
+            bomb.position.y = 0.6;
+            bomb.timer = 80;
+            scene.add(bomb);
+            bombs.push(bomb);
+        }
+
+        function updateBombs() {
+            bombs.forEach((bomb, idx) => {
+                bomb.timer--;
+                bomb.scale.setScalar(1 + Math.sin(Date.now() * 0.05) * 0.2);
+                if (bomb.timer <= 0) {
+                    createExplosion(bomb.position, 0xff4400, 60);
+                    enemies.forEach(enemy => {
+                        const dist = enemy.position.distanceTo(bomb.position);
+                        if (dist < 18) enemy.health -= 50 * (1 - dist / 18);
+                    });
+                    scene.remove(bomb);
+                    bombs.splice(idx, 1);
+                }
+            });
+            document.getElementById('bombCount').textContent = `x${gameState.bombs}`;
         }
 
         // ===== QUESTION SYSTEM =====
@@ -1769,7 +1783,6 @@
             gameState.pauseStartTime = Date.now();
             gameState.safeRoomMode = fromSafeRoom;
             
-            // Show paused overlay
             document.getElementById('pausedOverlay').classList.add('show');
             
             if (questionIndex >= shuffledQuestions.length) {
@@ -1778,35 +1791,16 @@
             }
             
             const q = shuffledQuestions[questionIndex++];
-            
-            // Shuffle the answers while tracking correct one
             const correctAnswer = q.a[q.c];
             const shuffledAnswers = [...q.a];
-            
-            // Fisher-Yates shuffle for answers
             for (let i = shuffledAnswers.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [shuffledAnswers[i], shuffledAnswers[j]] = [shuffledAnswers[j], shuffledAnswers[i]];
             }
             
-            // Find new index of correct answer
-            const newCorrectIndex = shuffledAnswers.indexOf(correctAnswer);
+            gameState.currentQuestion = { q: q.q, a: shuffledAnswers, c: shuffledAnswers.indexOf(correctAnswer), cat: q.cat };
             
-            // Store current question with shuffled answers
-            gameState.currentQuestion = {
-                q: q.q,
-                a: shuffledAnswers,
-                c: newCorrectIndex,
-                cat: q.cat
-            };
-            
-            // Show different category text for safe room
-            if (fromSafeRoom) {
-                document.getElementById('questionCategory').textContent = '📚 SAFE ROOM STUDY - ' + q.cat;
-            } else {
-                document.getElementById('questionCategory').textContent = q.cat;
-            }
-            
+            document.getElementById('questionCategory').textContent = fromSafeRoom ? '📚 SAFE ROOM STUDY - ' + q.cat : q.cat;
             document.getElementById('questionText').textContent = q.q;
             document.getElementById('feedback').textContent = '';
             document.getElementById('feedback').className = '';
@@ -1839,30 +1833,19 @@
             const feedback = document.getElementById('feedback');
             if (correct) {
                 let bonus = 50 + gameState.streak * 10;
-                if (inSafeRoom) {
-                    feedback.textContent = `✓ Correct! +25 Ammo, +${bonus} Score (Safe Room Bonus!)`;
-                } else {
-                    feedback.textContent = `✓ Correct! +25 Ammo, +${bonus} Score`;
-                }
+                feedback.textContent = `✓ Correct! +25 Ammo, +${bonus} Score`;
                 feedback.className = 'correct';
                 gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 25);
                 gameState.correct++;
                 gameState.score += bonus;
                 gameState.streak++;
                 
-                // Only spawn powerup if not in safe room (they have to go get it!)
-                if (!inSafeRoom) {
-                    const offset = new THREE.Vector3((Math.random()-0.5)*8, 0, (Math.random()-0.5)*8);
-                    spawnPowerup(camera.position.clone().add(offset));
-                } else {
-                    // In safe room, spawn powerup just outside
-                    const offset = new THREE.Vector3(15, 0, (Math.random()-0.5)*10);
-                    spawnPowerup(camera.position.clone().add(offset));
-                }
+                // Spawn powerup
+                const offset = new THREE.Vector3((Math.random()-0.5)*(inSafeRoom?2:8), 0, (Math.random()-0.5)*(inSafeRoom?2:8));
+                spawnPowerup(inSafeRoom ? new THREE.Vector3(SAFE_ROOM.x + 12, 0, SAFE_ROOM.z) : camera.position.clone().add(offset));
             } else {
-                // Reduced penalty in safe room: -10 instead of -20
-                const healthPenalty = inSafeRoom ? 10 : 20;
-                feedback.textContent = `✗ Wrong! -${healthPenalty} Health${inSafeRoom ? ' (Reduced in Safe Room)' : ''}`;
+                const healthPenalty = inSafeRoom ? 5 : 20;
+                feedback.textContent = `✗ Wrong! -${healthPenalty} Health`;
                 feedback.className = 'incorrect';
                 gameState.health -= healthPenalty;
                 gameState.wrong++;
@@ -1876,13 +1859,9 @@
                 gameState.questionActive = false;
                 gameState.safeRoomMode = false;
                 
-                // Adjust powerup timers for pause duration
                 const pauseDuration = Date.now() - gameState.pauseStartTime;
-                gameState.activePowerups.forEach(p => {
-                    p.endTime += pauseDuration;
-                });
+                gameState.activePowerups.forEach(p => { p.endTime += pauseDuration; });
                 
-                // Resume game
                 gameState.paused = false;
                 animate();
             }, 1800);
@@ -1894,7 +1873,7 @@
             setTimeout(() => flash.classList.remove('active'), 120);
         }
 
-        // ===== TOUCH CONTROLS - COMPLETELY REWRITTEN =====
+        // ===== CONTROLS =====
         const touchState = {
             joystick: { active: false, id: null, startX: 0, startY: 0, currentX: 0, currentY: 0 },
             look: { active: false, id: null, lastX: 0, lastY: 0, deltaX: 0, deltaY: 0 }
@@ -1903,14 +1882,12 @@
         const joystickThumb = document.getElementById('joystickThumb');
         const joystickContainer = document.getElementById('joystickContainer');
 
-        // Joystick Zone
         document.getElementById('joystickZone').addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (!touchState.joystick.active) {
                 const touch = e.changedTouches[0];
                 touchState.joystick.active = true;
                 touchState.joystick.id = touch.identifier;
-                
                 const rect = joystickContainer.getBoundingClientRect();
                 touchState.joystick.startX = rect.left + rect.width / 2;
                 touchState.joystick.startY = rect.top + rect.height / 2;
@@ -1923,19 +1900,13 @@
                 if (touch.identifier === touchState.joystick.id) {
                     const dx = touch.clientX - touchState.joystick.startX;
                     const dy = touch.clientY - touchState.joystick.startY;
-                    
                     const maxDist = 50;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     const clampedDist = Math.min(dist, maxDist);
                     const angle = Math.atan2(dy, dx);
-                    
-                    const clampedX = Math.cos(angle) * clampedDist;
-                    const clampedY = Math.sin(angle) * clampedDist;
-                    
-                    joystickThumb.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
-                    
-                    touchState.joystick.currentX = clampedX / maxDist;
-                    touchState.joystick.currentY = clampedY / maxDist;
+                    touchState.joystick.currentX = (Math.cos(angle) * clampedDist) / maxDist;
+                    touchState.joystick.currentY = (Math.sin(angle) * clampedDist) / maxDist;
+                    joystickThumb.style.transform = `translate(calc(-50% + ${Math.cos(angle)*clampedDist}px), calc(-50% + ${Math.sin(angle)*clampedDist}px))`;
                 }
             }
         }, { passive: false });
@@ -1945,7 +1916,6 @@
             for (const touch of e.changedTouches) {
                 if (touch.identifier === touchState.joystick.id) {
                     touchState.joystick.active = false;
-                    touchState.joystick.id = null;
                     touchState.joystick.currentX = 0;
                     touchState.joystick.currentY = 0;
                     joystickThumb.style.transform = 'translate(-50%, -50%)';
@@ -1953,7 +1923,6 @@
             }
         }, { passive: false });
 
-        // Look Zone
         document.getElementById('lookZone').addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (!touchState.look.active) {
@@ -1982,170 +1951,77 @@
             for (const touch of e.changedTouches) {
                 if (touch.identifier === touchState.look.id) {
                     touchState.look.active = false;
-                    touchState.look.id = null;
                     touchState.look.deltaX = 0;
                     touchState.look.deltaY = 0;
                 }
             }
         }, { passive: false });
 
-        // Action Buttons
         let shootInterval = null;
-        
         document.getElementById('shootButton').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             createProjectile();
-            shootInterval = setInterval(createProjectile, 120);
-        }, { passive: false });
-
-        document.getElementById('shootButton').addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (shootInterval) { clearInterval(shootInterval); shootInterval = null; }
-        }, { passive: false });
-
-        document.getElementById('shootButton').addEventListener('touchcancel', (e) => {
-            if (shootInterval) { clearInterval(shootInterval); shootInterval = null; }
-        }, { passive: false });
-
-        document.getElementById('bombButton').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropBomb();
-        }, { passive: false });
-
-        document.getElementById('questionButton').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            showQuestion(false);
+            shootInterval = setInterval(createProjectile, gameState.godBeamActive ? 20 : 120);
         }, { passive: false });
         
-        // Safe room study button
-        document.getElementById('answerInSafeRoom').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (gameState.inSafeRoom) {
-                showQuestion(true); // true = from safe room
-            }
-        }, { passive: false });
-
-        // Prevent default on all buttons
-        ['shootButton', 'bombButton', 'questionButton', 'answerInSafeRoom'].forEach(id => {
-            const el = document.getElementById(id);
-            el.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-        });
+        document.getElementById('shootButton').addEventListener('touchend', (e) => { e.preventDefault(); clearInterval(shootInterval); }, { passive: false });
+        document.getElementById('bombButton').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); dropBomb(); }, { passive: false });
+        document.getElementById('questionButton').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); showQuestion(false); }, { passive: false });
+        document.getElementById('answerInSafeRoom').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); if (gameState.inSafeRoom) showQuestion(true); }, { passive: false });
 
         // ===== MINIMAP =====
         const minimapCanvas = document.getElementById('minimapCanvas');
         const minimapCtx = minimapCanvas.getContext('2d');
-        minimapCanvas.width = 90;
-        minimapCanvas.height = 90;
+        minimapCanvas.width = 90; minimapCanvas.height = 90;
 
         function updateMinimap() {
             minimapCtx.fillStyle = 'rgba(0, 15, 30, 0.95)';
             minimapCtx.fillRect(0, 0, 90, 90);
-            
             const scale = 90 / (ARENA_SIZE * 2);
             const ox = 45, oy = 45;
             
             // Safe room
             minimapCtx.fillStyle = 'rgba(0, 255, 100, 0.3)';
-            minimapCtx.fillRect(
-                (SAFE_ROOM.x - SAFE_ROOM.width/2) * scale + ox,
-                (SAFE_ROOM.z - SAFE_ROOM.depth/2) * scale + oy,
-                SAFE_ROOM.width * scale,
-                SAFE_ROOM.depth * scale
-            );
-            minimapCtx.strokeStyle = '#00ff88';
-            minimapCtx.lineWidth = 1;
-            minimapCtx.strokeRect(
-                (SAFE_ROOM.x - SAFE_ROOM.width/2) * scale + ox,
-                (SAFE_ROOM.z - SAFE_ROOM.depth/2) * scale + oy,
-                SAFE_ROOM.width * scale,
-                SAFE_ROOM.depth * scale
-            );
+            minimapCtx.fillRect((SAFE_ROOM.x - SAFE_ROOM.width/2) * scale + ox, (SAFE_ROOM.z - SAFE_ROOM.depth/2) * scale + oy, SAFE_ROOM.width * scale, SAFE_ROOM.depth * scale);
             
-            // Traps
-            traps.forEach(t => {
-                minimapCtx.fillStyle = 'rgba(255, 0, 50, 0.5)';
-                minimapCtx.beginPath();
-                minimapCtx.arc(t.mesh.position.x * scale + ox, t.mesh.position.z * scale + oy, 3, 0, Math.PI * 2);
-                minimapCtx.fill();
-            });
-            
-            // Enemies
             enemies.forEach(e => {
-                minimapCtx.fillStyle = '#ff3333';
+                minimapCtx.fillStyle = e.enemyType.kamikaze ? '#ff0000' : '#ff3333';
                 minimapCtx.beginPath();
-                minimapCtx.arc(e.position.x * scale + ox, e.position.z * scale + oy, 3, 0, Math.PI * 2);
+                minimapCtx.arc(e.position.x * scale + ox, e.position.z * scale + oy, 2, 0, Math.PI * 2);
                 minimapCtx.fill();
             });
             
-            // Powerups
-            powerupObjects.forEach(p => {
-                minimapCtx.fillStyle = '#ffff00';
-                minimapCtx.beginPath();
-                minimapCtx.arc(p.mesh.position.x * scale + ox, p.mesh.position.z * scale + oy, 2, 0, Math.PI * 2);
-                minimapCtx.fill();
-            });
-            
-            // Player
-            minimapCtx.fillStyle = gameState.inSafeRoom ? '#00ff88' : '#00ffff';
+            minimapCtx.fillStyle = '#00ffff';
             minimapCtx.beginPath();
-            minimapCtx.arc(camera.position.x * scale + ox, camera.position.z * scale + oy, 4, 0, Math.PI * 2);
+            minimapCtx.arc(camera.position.x * scale + ox, camera.position.z * scale + oy, 3, 0, Math.PI * 2);
             minimapCtx.fill();
-            
-            // Direction
-            const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-            minimapCtx.strokeStyle = gameState.inSafeRoom ? '#00ff88' : '#00ffff';
-            minimapCtx.lineWidth = 2;
-            minimapCtx.beginPath();
-            minimapCtx.moveTo(camera.position.x * scale + ox, camera.position.z * scale + oy);
-            minimapCtx.lineTo((camera.position.x + dir.x * 8) * scale + ox, (camera.position.z + dir.z * 8) * scale + oy);
-            minimapCtx.stroke();
         }
 
-        // ===== LEVEL PROGRESSION =====
+        // ===== MAIN LOOP =====
         function checkLevelProgress() {
-            const newLevel = Math.floor((gameState.correct * 3 + gameState.score / 300) / 10) + 1;
+            const newLevel = Math.floor((gameState.correct * 3 + gameState.score / 400) / 10) + 1;
             if (newLevel > gameState.level && newLevel <= 10) {
                 gameState.level = newLevel;
-                
                 const indicator = document.getElementById('levelIndicator');
                 indicator.textContent = `LEVEL ${newLevel}`;
                 indicator.classList.add('show');
                 setTimeout(() => indicator.classList.remove('show'), 2500);
-                
                 generateLevel(newLevel);
-                
-                if (newLevel % 3 === 0) {
-                    setTimeout(() => {
-                        createEnemy(ENEMY_TYPES.BOSS);
-                    }, 2000);
-                }
-                
-                gameState.health = Math.min(gameState.maxHealth, gameState.health + 25);
-                gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 15);
+                gameState.health = Math.min(gameState.maxHealth, gameState.health + 30);
+                gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 20);
             }
         }
-
-        // ===== SHIELD VISUAL =====
+        
         let shieldMesh = null;
-
         function updateShieldVisual() {
             if (gameState.shieldActive && !shieldMesh) {
-                shieldMesh = new THREE.Mesh(
-                    new THREE.SphereGeometry(2.2, 20, 20),
-                    new THREE.MeshBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.25, side: THREE.DoubleSide })
-                );
+                shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(2.5, 20, 20), new THREE.MeshBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.2, wireframe: true }));
                 scene.add(shieldMesh);
             }
-            
             if (shieldMesh) {
                 if (gameState.shieldActive) {
                     shieldMesh.position.copy(camera.position);
-                    shieldMesh.rotation.y += 0.025;
-                    shieldMesh.material.opacity = 0.2 + Math.sin(Date.now() * 0.008) * 0.1;
+                    shieldMesh.rotation.y += 0.05;
                 } else {
                     scene.remove(shieldMesh);
                     shieldMesh = null;
@@ -2153,36 +2029,28 @@
             }
         }
 
-        // ===== MAIN LOOP =====
         function animate() {
             if (gameState.gameOver) return;
-            if (gameState.paused) return; // Stop loop when paused
+            if (gameState.paused) return;
             
             requestAnimationFrame(animate);
 
-            // Player movement
+            // Movement
             if (touchState.joystick.currentX !== 0 || touchState.joystick.currentY !== 0) {
                 const moveDir = new THREE.Vector3(touchState.joystick.currentX, 0, touchState.joystick.currentY);
                 moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
-                
-                const speed = 0.18 * gameState.speedMultiplier;
+                const speed = (gameState.titanMode ? 0.35 : 0.18) * gameState.speedMultiplier;
                 camera.position.addScaledVector(moveDir, speed);
-                
                 camera.position.x = Math.max(-ARENA_SIZE + 2, Math.min(ARENA_SIZE - 2, camera.position.x));
                 camera.position.z = Math.max(-ARENA_SIZE + 2, Math.min(ARENA_SIZE - 2, camera.position.z));
             }
 
-            // Camera look
             camera.rotation.order = 'YXZ';
             camera.rotation.y -= touchState.look.deltaX;
             camera.rotation.x -= touchState.look.deltaY;
             camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, camera.rotation.x));
-            
-            // Decay look delta
-            touchState.look.deltaX *= 0.7;
-            touchState.look.deltaY *= 0.7;
+            touchState.look.deltaX *= 0.7; touchState.look.deltaY *= 0.7;
 
-            // Update all systems
             updateEnemies();
             updatePowerups();
             updateProjectiles();
@@ -2195,8 +2063,8 @@
             checkLevelProgress();
 
             // UI
-            document.getElementById('health').textContent = Math.max(0, Math.ceil(gameState.health));
-            document.getElementById('healthBar').style.width = (Math.max(0, gameState.health) / gameState.maxHealth * 100) + '%';
+            document.getElementById('health').textContent = Math.ceil(gameState.health);
+            document.getElementById('healthBar').style.width = (gameState.health / gameState.maxHealth * 100) + '%';
             document.getElementById('ammo').textContent = gameState.ammo;
             document.getElementById('ammoBar').style.width = (gameState.ammo / gameState.maxAmmo * 100) + '%';
             document.getElementById('score').textContent = gameState.score;
@@ -2211,25 +2079,21 @@
                 return `<div class="powerup-item">${p.name} (${rem}s)</div>`;
             }).join('');
 
-            // Game over
             if (gameState.health <= 0) {
                 gameState.gameOver = true;
                 document.getElementById('gameOverText').innerHTML = `
                     <div style="font-size: 26px; margin-bottom: 12px;">💀 GAME OVER</div>
                     <div>Score: <span style="color: #0ff;">${gameState.score}</span></div>
                     <div>Level: <span style="color: #0ff;">${gameState.level}</span></div>
-                    <div>Correct: <span style="color: #0f0;">${gameState.correct}</span> | Wrong: <span style="color: #f44;">${gameState.wrong}</span></div>
                 `;
                 document.getElementById('gameMessage').style.display = 'block';
-                return;
             }
 
             renderer.render(scene, camera);
         }
 
-        // ===== INIT =====
         generateLevel(1);
-        for (let i = 0; i < 3; i++) createEnemy();
+        for (let i = 0; i < 4; i++) createEnemy();
         animate();
 
         window.addEventListener('resize', () => {
@@ -2237,11 +2101,7 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
-        // Prevent scrolling/zooming
         document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-        document.addEventListener('gesturestart', e => e.preventDefault());
-        document.addEventListener('gesturechange', e => e.preventDefault());
     </script>
 </body>
 </html>
