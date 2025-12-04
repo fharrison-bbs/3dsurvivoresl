@@ -491,6 +491,34 @@
             box-shadow: 0 0 50px rgba(255, 0, 150, 0.4);
         }
         
+        #pausedOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 99;
+            display: none;
+            pointer-events: none;
+        }
+        
+        #pausedOverlay.show {
+            display: block;
+        }
+        
+        #pausedText {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            color: #0ff;
+            text-shadow: 0 0 20px #0ff;
+            letter-spacing: 4px;
+        }
+        
         #restartBtn {
             margin-top: 20px;
             padding: 14px 35px;
@@ -559,6 +587,11 @@
         <div id="damageFlash"></div>
         <div id="levelIndicator">LEVEL 1</div>
         <div id="powerupNotification"></div>
+        
+        <!-- Paused Overlay -->
+        <div id="pausedOverlay">
+            <div id="pausedText">⏸️ PAUSED</div>
+        </div>
         
         <!-- UI Panel -->
         <div id="ui">
@@ -714,8 +747,10 @@
             level: 1,
             activePowerups: [],
             questionActive: false,
+            paused: false,
             currentQuestion: null,
             gameOver: false,
+            pauseStartTime: 0,
             // Powerup effects
             shieldActive: false,
             speedMultiplier: 1,
@@ -1356,6 +1391,7 @@
         const bombs = [];
 
         function dropBomb() {
+            if (gameState.paused) return; // Don't drop bombs while paused
             if (gameState.bombs <= 0) return;
             gameState.bombs--;
             
@@ -1396,6 +1432,7 @@
         const BASE_FIRE_RATE = 150; // ms between shots
 
         function createProjectile() {
+            if (gameState.paused) return; // Don't shoot while paused
             if (gameState.ammo <= 0) {
                 showQuestion();
                 return;
@@ -1503,6 +1540,11 @@
         function showQuestion() {
             if (gameState.questionActive || gameState.gameOver) return;
             gameState.questionActive = true;
+            gameState.paused = true;
+            gameState.pauseStartTime = Date.now();
+            
+            // Show paused overlay
+            document.getElementById('pausedOverlay').classList.add('show');
             
             if (questionIndex >= shuffledQuestions.length) {
                 shuffledQuestions = shuffleArray([...QUESTION_POOL]);
@@ -1564,7 +1606,18 @@
             
             setTimeout(() => {
                 document.getElementById('questionModal').classList.remove('active');
+                document.getElementById('pausedOverlay').classList.remove('show');
                 gameState.questionActive = false;
+                
+                // Adjust powerup timers for pause duration
+                const pauseDuration = Date.now() - gameState.pauseStartTime;
+                gameState.activePowerups.forEach(p => {
+                    p.endTime += pauseDuration;
+                });
+                
+                // Resume game
+                gameState.paused = false;
+                animate();
             }, 1800);
         }
 
@@ -1810,6 +1863,8 @@
         // ===== MAIN LOOP =====
         function animate() {
             if (gameState.gameOver) return;
+            if (gameState.paused) return; // Stop loop when paused
+            
             requestAnimationFrame(animate);
 
             // Player movement
