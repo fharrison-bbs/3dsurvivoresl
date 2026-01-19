@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ESL Jungle Adventure - Grammar Quest</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1a3a1a;
+            color: #fff;
+        }
+        
+        #gameContainer {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            touch-action: none;
+        }
+        
+        /* ===== JOYSTICK - LEFT SIDE ===== */
+        #joystickZone {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50%;
+            height: 50%;
+            z-index: 10;
+            touch-action: none;
+        }
+        
+        #joystickContainer {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 140px;
+            height: 140px;
+            pointer-events: none;
+        }
+        
+        .joystick-base {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(100, 200, 100, 0.25) 0%, rgba(50, 150, 50, 0.15) 100%);
+            border: 3px solid rgba(140, 220, 100, 0.6);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 0 30px rgba(100, 200, 100, 0.4), inset 0 0 30px rgba(50, 150, 50, 0.2);
+        }
+        
+        .joystick-thumb {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at 30% 30%, rgba(140, 220, 100, 0.9), rgba(80, 160, 80, 0.8));
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid #8dc464;
+            box-shadow: 0 0 20px rgba(140, 220, 100, 0.6), inset 0 -5px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.05s ease-out;
+        }
+        
+        /* ===== LOOK ZONE - RIGHT SIDE ===== */
+        #lookZone {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 70%;
+            z-index: 9;
+            touch-action: none;
+        }
+        
+        /* ===== ACTION BUTTONS ===== */
+        #shootButton {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle at 30% 30%, rgba(220, 140, 60, 0.6), rgba(180, 100, 40, 0.4));
+            border: 4px solid #c8823c;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 15;
+            color: #f4a460;
+            text-shadow: 0 0 15px #c8823c;
+            box-shadow: 0 0 30px rgba(220, 140, 60, 0.5), inset 0 -5px 20px rgba(0, 0, 0, 0.3);
+            touch-action: none;
+        }
+        
+        #shootButton.disabled {
+            filter: grayscale(1);
+            opacity: 0.5;
+            border-color: #555;
+            background: rgba(50,50,50,0.5);
+        }
+        
+        #shootButton:active {
+            transform: scale(0.95);
+            background: radial-gradient(circle at 30% 30%, rgba(240, 160, 80, 0.7), rgba(200, 120, 60, 0.5));
+        }
+        
+        #shootButton .icon {
+            font-size: 28px;
+            margin-bottom: 2px;
+        }
+        
+        #bombButton {
+            position: absolute;
+            bottom: 150px;
+            right: 40px;
+            width: 70px;
+            height: 70px;
+            background: radial-gradient(circle at 30% 30%, rgba(180, 100, 200, 0.5), rgba(140, 60, 160, 0.4));
+            border: 3px solid #b488c8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 24px;
+            z-index: 15;
+            box-shadow: 0 0 25px rgba(180, 100, 200, 0.5);
+            touch-action: none;
+        }
+        
+        #bombButton:active {
+            transform: scale(0.95);
+        }
+        
+        #bombButton .count {
+            font-size: 10px;
+            color: #fff;
+            margin-top: 2px;
+        }
+        
+        #questionButton {
+            position: absolute;
+            bottom: 150px;
+            right: 120px;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at 30% 30%, rgba(220, 200, 100, 0.6), rgba(180, 160, 80, 0.4));
+            border: 3px solid #dcb864;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            z-index: 15;
+            box-shadow: 0 0 20px rgba(220, 200, 100, 0.5);
+            touch-action: none;
+        }
+        
+        #questionButton:active {
+            transform: scale(0.95);
+        }
+        
+        /* ===== UI PANELS ===== */
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: linear-gradient(135deg, rgba(20, 40, 20, 0.95), rgba(30, 60, 30, 0.9));
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 11px;
+            min-width: 160px;
+            z-index: 5;
+            border: 1px solid rgba(140, 220, 100, 0.4);
+            box-shadow: 0 0 20px rgba(100, 200, 100, 0.3);
+            pointer-events: none;
+        }
+        
+        .ui-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+        
+        .ui-label {
+            color: #a0d0a0;
+            font-weight: bold;
+        }
+        
+        .ui-value {
+            color: #dcf0dc;
+        }
+        
+        .bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 3px;
+            border: 1px solid rgba(140, 220, 100, 0.3);
+        }
+        
+        .bar {
+            height: 100%;
+            transition: width 0.2s ease;
+            background: linear-gradient(90deg, #8dc464 0%, #b4dc96 100%);
+            box-shadow: 0 0 10px rgba(140, 220, 100, 0.5);
+        }
+        
+        #healthBar {
+            background: linear-gradient(90deg, #6c9c4c 0%, #8dc464 100%);
+        }
+        
+        #ammoBar {
+            background: linear-gradient(90deg, #c8823c 0%, #dcb864 100%);
+        }
+        
+        #powerupsList {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, rgba(20, 40, 20, 0.95), rgba(30, 60, 30, 0.9));
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 10px;
+            z-index: 5;
+            min-width: 140px;
+            max-width: 200px;
+            border: 1px solid rgba(140, 220, 100, 0.4);
+            box-shadow: 0 0 20px rgba(100, 200, 100, 0.3);
+            pointer-events: none;
+        }
+        
+        .powerup-item {
+            color: #dcf0dc;
+            margin: 4px 0;
+            text-shadow: 0 0 8px rgba(220, 200, 100, 0.6);
+        }
+        
+        /* ===== QUESTION MODAL ===== */
+        #questionModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 25, 10, 0.95);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .question-panel {
+            background: linear-gradient(135deg, rgba(30, 60, 30, 0.98), rgba(40, 80, 40, 0.95));
+            padding: 28px;
+            border-radius: 20px;
+            max-width: 500px;
+            width: 90%;
+            border: 3px solid rgba(140, 220, 100, 0.6);
+            box-shadow: 0 0 40px rgba(100, 200, 100, 0.4);
+        }
+        
+        .question-header {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #dcf0dc;
+            text-shadow: 0 0 15px rgba(220, 200, 100, 0.5);
+        }
+        
+        .question-text {
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            color: #c8e8c8;
+            text-align: center;
+        }
+        
+        .answer-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .answer-btn {
+            padding: 14px;
+            background: linear-gradient(135deg, rgba(80, 160, 80, 0.5), rgba(60, 120, 60, 0.4));
+            border: 2px solid rgba(140, 220, 100, 0.5);
+            border-radius: 12px;
+            color: #dcf0dc;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 15px rgba(100, 200, 100, 0.2);
+            text-align: left;
+        }
+        
+        .answer-btn:active {
+            transform: scale(0.98);
+            background: linear-gradient(135deg, rgba(100, 180, 100, 0.6), rgba(80, 140, 80, 0.5));
+        }
+        
+        .answer-btn.correct {
+            background: linear-gradient(135deg, rgba(100, 220, 100, 0.7), rgba(80, 180, 80, 0.6));
+            border-color: #8dc464;
+            box-shadow: 0 0 25px rgba(140, 220, 100, 0.6);
+        }
+        
+        .answer-btn.wrong {
+            background: linear-gradient(135deg, rgba(200, 100, 100, 0.7), rgba(160, 80, 80, 0.6));
+            border-color: #c86464;
+            box-shadow: 0 0 25px rgba(200, 100, 100, 0.6);
+        }
+        
+        /* ===== SAFE ROOM INDICATOR ===== */
+        #safeRoomStatus {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(30, 60, 30, 0.95), rgba(40, 80, 40, 0.9));
+            padding: 20px 30px;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #dcf0dc;
+            text-align: center;
+            display: none;
+            z-index: 8;
+            border: 2px solid rgba(140, 220, 100, 0.6);
+            box-shadow: 0 0 30px rgba(100, 200, 100, 0.5);
+            pointer-events: none;
+        }
+        
+        #answerInSafeRoom {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(220, 200, 100, 0.95), rgba(180, 160, 80, 0.9));
+            padding: 16px 28px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #2a1a0a;
+            display: none;
+            z-index: 15;
+            border: 3px solid #dcb864;
+            box-shadow: 0 0 30px rgba(220, 200, 100, 0.6);
+            touch-action: none;
+        }
+        
+        #answerInSafeRoom:active {
+            transform: translate(-50%, -50%) scale(0.97);
+        }
+        
+        #gameMessage {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 25, 10, 0.95);
+            z-index: 101;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #gameOverText {
+            background: linear-gradient(135deg, rgba(30, 60, 30, 0.98), rgba(40, 80, 40, 0.95));
+            padding: 32px;
+            border-radius: 20px;
+            font-size: 18px;
+            text-align: center;
+            color: #dcf0dc;
+            border: 3px solid rgba(140, 220, 100, 0.6);
+            box-shadow: 0 0 40px rgba(100, 200, 100, 0.4);
+        }
+        
+        #minimap {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 90px;
+            height: 90px;
+            border: 2px solid rgba(140, 220, 100, 0.5);
+            border-radius: 8px;
+            z-index: 6;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(100, 200, 100, 0.3);
+            background: rgba(20, 40, 20, 0.9);
+        }
+        
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #levelIndicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            font-size: 48px;
+            font-weight: bold;
+            color: #dcf0dc;
+            text-shadow: 0 0 30px rgba(220, 200, 100, 0.8), 0 0 60px rgba(140, 220, 100, 0.6);
+            opacity: 0;
+            transition: all 0.5s ease;
+            z-index: 50;
+            pointer-events: none;
+        }
+        
+        #levelIndicator.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer"></div>
+    
+    <!-- UI -->
+    <div id="ui">
+        <div class="ui-row">
+            <span class="ui-label">🌿 HEALTH:</span>
+            <span class="ui-value"><span id="health">100</span>/100</span>
+        </div>
+        <div class="bar-container"><div id="healthBar" class="bar" style="width: 100%;"></div></div>
+        
+        <div class="ui-row" style="margin-top: 10px;">
+            <span class="ui-label">🎯 AMMO:</span>
+            <span class="ui-value"><span id="ammo">50</span>/50</span>
+        </div>
+        <div class="bar-container"><div id="ammoBar" class="bar" style="width: 100%;"></div></div>
+        
+        <div class="ui-row" style="margin-top: 10px;">
+            <span class="ui-label">⭐ SCORE:</span>
+            <span class="ui-value" id="score">0</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">🔥 STREAK:</span>
+            <span class="ui-value" id="streak">0</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">📊 LEVEL:</span>
+            <span class="ui-value" id="level">1</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">👾 ENEMIES:</span>
+            <span class="ui-value" id="enemyCount">0</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">✅ CORRECT:</span>
+            <span class="ui-value" id="correct">0</span>
+        </div>
+        <div class="ui-row">
+            <span class="ui-label">❌ WRONG:</span>
+            <span class="ui-value" id="wrong">0</span>
+        </div>
+    </div>
+    
+    <div id="powerupsList"></div>
+    
+    <!-- Controls -->
+    <div id="joystickZone">
+        <div id="joystickContainer">
+            <div class="joystick-base">
+                <div class="joystick-thumb"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="lookZone"></div>
+    
+    <button id="shootButton">
+        <div class="icon">🎯</div>
+        <div>SHOOT</div>
+    </button>
+    
+    <button id="bombButton">
+        <div>💣</div>
+        <div class="count" id="bombCount">3</div>
+    </button>
+    
+    <button id="questionButton">❓</button>
+    
+    <div id="minimap">
+        <canvas id="minimapCanvas"></canvas>
+    </div>
+    
+    <div id="safeRoomStatus">🌳 SAFE ZONE - No Enemies! 🌳</div>
+    <button id="answerInSafeRoom">📝 ANSWER QUESTION (Bonus Rewards!)</button>
+    
+    <div id="levelIndicator"></div>
+    
+    <!-- Question Modal -->
+    <div id="questionModal">
+        <div class="question-panel">
+            <div class="question-header">🌴 GRAMMAR CHALLENGE 🌴</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="answer-buttons" id="answerButtons"></div>
+        </div>
+    </div>
+    
+    <div id="gameMessage">
+        <div id="gameOverText"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ===== QUESTIONS - ADVERBS OF DEGREE & PRESENT PERFECT =====
+        const questions = [
+            // Adverbs of Degree
+            {
+                question: "The jungle is ___ beautiful at sunrise.",
+                answers: ["very", "too", "much", "more"],
+                correct: 0,
+                explanation: "'Very' is used to intensify adjectives."
+            },
+            {
+                question: "This tree is ___ tall to climb.",
+                answers: ["very", "too", "enough", "quite"],
+                correct: 1,
+                explanation: "'Too' means excessively, making something impossible or undesirable."
+            },
+            {
+                question: "The vines are strong ___ to hold our weight.",
+                answers: ["very", "too", "enough", "quite"],
+                correct: 2,
+                explanation: "'Enough' comes after adjectives and means sufficient."
+            },
+            {
+                question: "The waterfall is ___ magnificent!",
+                answers: ["absolutely", "very", "too", "enough"],
+                correct: 0,
+                explanation: "'Absolutely' is used with extreme adjectives like magnificent."
+            },
+            {
+                question: "The river flows ___ slowly today.",
+                answers: ["very", "quite", "too", "enough"],
+                correct: 1,
+                explanation: "'Quite' means fairly or moderately."
+            },
+            {
+                question: "The monkeys are ___ playful creatures.",
+                answers: ["extremely", "too", "enough", "much"],
+                correct: 0,
+                explanation: "'Extremely' means to a very great degree."
+            },
+            {
+                question: "It's ___ hot to walk without water.",
+                answers: ["very", "too", "enough", "quite"],
+                correct: 1,
+                explanation: "'Too' indicates something is excessive and causes a problem."
+            },
+            {
+                question: "The path isn't wide ___ for two people.",
+                answers: ["very", "too", "enough", "quite"],
+                correct: 2,
+                explanation: "'Enough' comes after adjectives to show sufficiency."
+            },
+            {
+                question: "The jungle sounds are ___ loud at night.",
+                answers: ["fairly", "too", "enough", "much"],
+                correct: 0,
+                explanation: "'Fairly' means moderately or to a reasonable degree."
+            },
+            {
+                question: "The humidity is ___ unbearable today.",
+                answers: ["very", "absolutely", "enough", "quite"],
+                correct: 1,
+                explanation: "'Absolutely' is used with extreme adjectives like unbearable."
+            },
+            {
+                question: "These flowers are ___ rare in this region.",
+                answers: ["rather", "too", "enough", "much"],
+                correct: 0,
+                explanation: "'Rather' means to a certain extent, somewhat."
+            },
+            {
+                question: "The explorer was ___ exhausted to continue.",
+                answers: ["very", "too", "enough", "quite"],
+                correct: 1,
+                explanation: "'Too' shows excess that prevents an action."
+            },
+            {
+                question: "The bridge is strong ___ to cross safely.",
+                answers: ["very", "too", "enough", "quite"],
+                correct: 2,
+                explanation: "'Enough' after an adjective means sufficient."
+            },
+            {
+                question: "The jungle is ___ dense in this area.",
+                answers: ["incredibly", "too", "enough", "much"],
+                correct: 0,
+                explanation: "'Incredibly' means to an extraordinary degree."
+            },
+            {
+                question: "The rain is falling ___ heavily now.",
+                answers: ["pretty", "too", "enough", "much"],
+                correct: 0,
+                explanation: "'Pretty' (informal) means fairly or quite."
+            },
+
+            // Present Perfect
+            {
+                question: "The explorers ___ discovered a new species.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "Use 'have' with plural subjects in present perfect."
+            },
+            {
+                question: "She ___ visited this jungle three times.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "Use 'has' with singular third-person subjects (he/she/it)."
+            },
+            {
+                question: "They ___ never seen such tall trees before.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "'Never' goes between 'have' and the past participle."
+            },
+            {
+                question: "The guide ___ lived in the jungle for years.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "Use 'has' with singular subjects like 'the guide'."
+            },
+            {
+                question: "We ___ already packed our supplies.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "'Already' goes between 'have' and the past participle."
+            },
+            {
+                question: "Have you ever ___ a jaguar in the wild?",
+                answers: ["saw", "seen", "see", "seeing"],
+                correct: 1,
+                explanation: "Present perfect uses the past participle 'seen', not 'saw'."
+            },
+            {
+                question: "The temperature ___ risen significantly today.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "'Temperature' is singular, so use 'has'."
+            },
+            {
+                question: "I ___ just finished exploring the cave.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "Use 'have' with 'I', 'you', 'we', 'they'."
+            },
+            {
+                question: "The animals ___ eaten all the fruit.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "Plural subject 'animals' takes 'have'."
+            },
+            {
+                question: "She ___ forgotten her water bottle.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "Third-person singular 'she' takes 'has'."
+            },
+            {
+                question: "Have they ___ the camp yet?",
+                answers: ["reach", "reached", "reaching", "reaches"],
+                correct: 1,
+                explanation: "Present perfect uses past participle 'reached'."
+            },
+            {
+                question: "The storm ___ passed over the jungle.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "'Storm' is singular, so use 'has'."
+            },
+            {
+                question: "We ___ been hiking since morning.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "'We' takes 'have' in present perfect."
+            },
+            {
+                question: "Has the river ___ its course?",
+                answers: ["change", "changed", "changing", "changes"],
+                correct: 1,
+                explanation: "Present perfect uses past participle 'changed'."
+            },
+            {
+                question: "The birds ___ flown south for the season.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "Plural 'birds' takes 'have'."
+            },
+            {
+                question: "He ___ climbed this mountain before.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "Third-person singular 'he' takes 'has'."
+            },
+            {
+                question: "How long ___ you been in the jungle?",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "Questions with 'you' use 'have'."
+            },
+            {
+                question: "The expedition ___ lasted for two weeks.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "'Expedition' is singular, so use 'has'."
+            },
+            {
+                question: "I ___ never heard such strange sounds.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "'I' takes 'have' in present perfect."
+            },
+            {
+                question: "The rain ___ stopped finally.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "'Rain' (uncountable) is singular, so use 'has'."
+            },
+            {
+                question: "They ___ crossed the river safely.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "Plural 'they' takes 'have'."
+            },
+            {
+                question: "Has she ___ her way back?",
+                answers: ["find", "found", "finding", "finds"],
+                correct: 1,
+                explanation: "Present perfect uses past participle 'found'."
+            },
+            {
+                question: "The plants ___ grown rapidly this season.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "Plural 'plants' takes 'have'."
+            },
+            {
+                question: "It ___ been raining all day.",
+                answers: ["have", "has", "had", "having"],
+                correct: 1,
+                explanation: "'It' is third-person singular, so use 'has'."
+            },
+            {
+                question: "We ___ collected many samples today.",
+                answers: ["have", "has", "had", "having"],
+                correct: 0,
+                explanation: "'We' takes 'have' in present perfect."
+            }
+        ];
+
+        // ===== GAME STATE =====
+        const gameState = {
+            health: 100,
+            maxHealth: 100,
+            ammo: 50,
+            maxAmmo: 50,
+            score: 0,
+            level: 1,
+            streak: 0,
+            correct: 0,
+            wrong: 0,
+            bombs: 3,
+            activePowerups: [],
+            inSafeRoom: false,
+            godBeamActive: false,
+            titanMode: false,
+            speedMultiplier: 1,
+            shieldActive: false,
+            gameOver: false,
+            paused: false
+        };
+
+        const ARENA_SIZE = 80;
+        const SAFE_ROOM = { x: 0, z: 60, width: 16, depth: 16 };
+
+        // ===== THREE.JS SETUP =====
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x1a3a1a, 20, 120);
+        scene.background = new THREE.Color(0x1a3a1a);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.6, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('gameContainer').appendChild(renderer.domElement);
+
+        // ===== LIGHTING =====
+        const ambientLight = new THREE.AmbientLight(0x6a8a5a, 0.5);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xdcdc96, 0.8);
+        sunLight.position.set(50, 100, 50);
+        sunLight.castShadow = true;
+        scene.add(sunLight);
+
+        const moonLight = new THREE.PointLight(0x8dc8dc, 0.3, 100);
+        moonLight.position.set(-30, 40, -30);
+        scene.add(moonLight);
+
+        // ===== ARENA =====
+        function generateLevel(level) {
+            // Floor - jungle ground
+            const floorGeometry = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2, 20, 20);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x3a5a2a, 
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Walls - tree line
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x2a4a1a });
+            [-ARENA_SIZE, ARENA_SIZE].forEach(x => {
+                const wall = new THREE.Mesh(new THREE.BoxGeometry(1, 12, ARENA_SIZE * 2), wallMaterial);
+                wall.position.set(x, 6, 0);
+                wall.castShadow = true;
+                scene.add(wall);
+            });
+            [-ARENA_SIZE, ARENA_SIZE].forEach(z => {
+                const wall = new THREE.Mesh(new THREE.BoxGeometry(ARENA_SIZE * 2, 12, 1), wallMaterial);
+                wall.position.set(0, 6, z);
+                wall.castShadow = true;
+                scene.add(wall);
+            });
+
+            // Safe room - clearing with bushes
+            const safeRoomFloor = new THREE.Mesh(
+                new THREE.BoxGeometry(SAFE_ROOM.width, 0.2, SAFE_ROOM.depth),
+                new THREE.MeshStandardMaterial({ color: 0x5a7a4a })
+            );
+            safeRoomFloor.position.set(SAFE_ROOM.x, 0.1, SAFE_ROOM.z);
+            scene.add(safeRoomFloor);
+
+            // Safe room markers - leaves
+            const markerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 6, 8);
+            const markerMaterial = new THREE.MeshStandardMaterial({ color: 0x8dc464, emissive: 0x6aa050, emissiveIntensity: 0.5 });
+            [
+                [-SAFE_ROOM.width/2, SAFE_ROOM.depth/2],
+                [SAFE_ROOM.width/2, SAFE_ROOM.depth/2],
+                [-SAFE_ROOM.width/2, -SAFE_ROOM.depth/2],
+                [SAFE_ROOM.width/2, -SAFE_ROOM.depth/2]
+            ].forEach(([dx, dz]) => {
+                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                marker.position.set(SAFE_ROOM.x + dx, 3, SAFE_ROOM.z + dz);
+                scene.add(marker);
+            });
+
+            // Obstacles - trees and vines
+            const obstacleTypes = [
+                { color: 0x3a4a2a, size: [1.5, 8, 1.5] },
+                { color: 0x4a5a3a, size: [2, 6, 2] },
+                { color: 0x2a3a1a, size: [1, 10, 1] }
+            ];
+            
+            for (let i = 0; i < 15 + level * 2; i++) {
+                const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+                const obstacle = new THREE.Mesh(
+                    new THREE.BoxGeometry(...type.size),
+                    new THREE.MeshStandardMaterial({ color: type.color })
+                );
+                let x, z;
+                do {
+                    x = (Math.random() - 0.5) * ARENA_SIZE * 1.8;
+                    z = (Math.random() - 0.5) * ARENA_SIZE * 1.8;
+                } while (
+                    Math.abs(x - SAFE_ROOM.x) < SAFE_ROOM.width && 
+                    Math.abs(z - SAFE_ROOM.z) < SAFE_ROOM.depth
+                );
+                obstacle.position.set(x, type.size[1] / 2, z);
+                obstacle.castShadow = true;
+                scene.add(obstacle);
+            }
+        }
+
+        // ===== ENEMIES =====
+        const enemies = [];
+        const ENEMY_TYPES = [
+            { name: 'Spider', color: 0x4a2a2a, speed: 0.04, health: 15, damage: 8, kamikaze: false },
+            { name: 'Snake', color: 0x3a5a2a, speed: 0.07, health: 12, damage: 12, kamikaze: false },
+            { name: 'Scorpion', color: 0xaa6a3a, speed: 0.1, health: 10, damage: 20, kamikaze: true }
+        ];
+
+        function createEnemy() {
+            const type = ENEMY_TYPES[Math.floor(Math.random() * ENEMY_TYPES.length)];
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: type.color,
+                emissive: type.color,
+                emissiveIntensity: 0.3
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            let x, z;
+            do {
+                x = (Math.random() - 0.5) * ARENA_SIZE * 1.5;
+                z = (Math.random() - 0.5) * ARENA_SIZE * 1.5;
+            } while (
+                Math.sqrt(x*x + z*z) < 15 || 
+                (Math.abs(x - SAFE_ROOM.x) < SAFE_ROOM.width && Math.abs(z - SAFE_ROOM.z) < SAFE_ROOM.depth)
+            );
+            
+            mesh.position.set(x, 0.5, z);
+            mesh.castShadow = true;
+            scene.add(mesh);
+            
+            enemies.push({
+                mesh,
+                position: mesh.position,
+                health: type.health,
+                maxHealth: type.health,
+                enemyType: type
+            });
+        }
+
+        function updateEnemies() {
+            if (gameState.inSafeRoom) return;
+            
+            enemies.forEach((enemy, idx) => {
+                const dir = new THREE.Vector3().subVectors(camera.position, enemy.position).normalize();
+                enemy.position.addScaledVector(dir, enemy.enemyType.speed);
+                
+                if (enemy.position.distanceTo(camera.position) < 2 && !gameState.shieldActive) {
+                    gameState.health -= enemy.enemyType.damage * 0.016;
+                    if (enemy.enemyType.kamikaze) {
+                        scene.remove(enemy.mesh);
+                        enemies.splice(idx, 1);
+                        createExplosion(enemy.position);
+                    }
+                }
+                
+                if (enemy.health <= 0) {
+                    scene.remove(enemy.mesh);
+                    enemies.splice(idx, 1);
+                    gameState.score += 10;
+                    createExplosion(enemy.position);
+                    if (Math.random() < 0.3) createPowerup(enemy.position);
+                }
+            });
+            
+            while (enemies.length < 3 + gameState.level) createEnemy();
+        }
+
+        // ===== POWERUPS =====
+        const powerups = [];
+        const POWERUP_TYPES = [
+            { name: '🌿 Health Boost', effect: () => { gameState.health = Math.min(gameState.maxHealth, gameState.health + 30); } },
+            { name: '🎯 Ammo Pack', effect: () => { gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 20); } },
+            { name: '💣 Extra Bomb', effect: () => { gameState.bombs += 1; document.getElementById('bombCount').textContent = gameState.bombs; } },
+            { name: '⚡ Speed Boost', duration: 8000, effect: () => { gameState.speedMultiplier = 1.8; }, end: () => { gameState.speedMultiplier = 1; } },
+            { name: '🛡️ Shield', duration: 10000, effect: () => { gameState.shieldActive = true; }, end: () => { gameState.shieldActive = false; } },
+            { name: '🌟 God Beam', duration: 6000, effect: () => { gameState.godBeamActive = true; document.getElementById('shootButton').classList.add('active'); }, end: () => { gameState.godBeamActive = false; document.getElementById('shootButton').classList.remove('active'); } },
+            { name: '🦍 Titan Mode', duration: 12000, effect: () => { gameState.titanMode = true; camera.position.y = 3; }, end: () => { gameState.titanMode = false; camera.position.y = 1.6; } }
+        ];
+
+        function createPowerup(position) {
+            const type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+            const geometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0xdcb864,
+                emissive: 0xdcb864,
+                emissiveIntensity: 0.6
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(position);
+            mesh.position.y = 0.5;
+            scene.add(mesh);
+            powerups.push({ mesh, type, spawnTime: Date.now() });
+        }
+
+        function updatePowerups() {
+            powerups.forEach((p, idx) => {
+                p.mesh.rotation.y += 0.05;
+                
+                if (p.mesh.position.distanceTo(camera.position) < 2) {
+                    p.type.effect();
+                    if (p.type.duration) {
+                        const endTime = Date.now() + p.type.duration;
+                        gameState.activePowerups.push({ ...p.type, endTime });
+                    }
+                    scene.remove(p.mesh);
+                    powerups.splice(idx, 1);
+                }
+                
+                if (Date.now() - p.spawnTime > 15000) {
+                    scene.remove(p.mesh);
+                    powerups.splice(idx, 1);
+                }
+            });
+            
+            gameState.activePowerups = gameState.activePowerups.filter(p => {
+                if (Date.now() > p.endTime) {
+                    if (p.end) p.end();
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        // ===== PROJECTILES =====
+        const projectiles = [];
+        function createProjectile() {
+            if (gameState.ammo <= 0) {
+                document.getElementById('shootButton').classList.add('disabled');
+                return;
+            }
+            document.getElementById('shootButton').classList.remove('disabled');
+            gameState.ammo--;
+            
+            const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0xdcb864,
+                emissive: 0xdcb864,
+                emissiveIntensity: 1
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(camera.position);
+            
+            const direction = new THREE.Vector3(0, 0, -1);
+            direction.applyQuaternion(camera.quaternion);
+            
+            scene.add(mesh);
+            projectiles.push({ mesh, direction, spawnTime: Date.now() });
+        }
+
+        function updateProjectiles() {
+            projectiles.forEach((proj, idx) => {
+                proj.mesh.position.addScaledVector(proj.direction, 0.8);
+                
+                enemies.forEach(enemy => {
+                    if (proj.mesh.position.distanceTo(enemy.position) < 1.5) {
+                        enemy.health -= gameState.godBeamActive ? 100 : 5;
+                        scene.remove(proj.mesh);
+                        projectiles.splice(idx, 1);
+                    }
+                });
+                
+                if (Date.now() - proj.spawnTime > 3000 || 
+                    Math.abs(proj.mesh.position.x) > ARENA_SIZE || 
+                    Math.abs(proj.mesh.position.z) > ARENA_SIZE) {
+                    scene.remove(proj.mesh);
+                    projectiles.splice(idx, 1);
+                }
+            });
+        }
+
+        // ===== PARTICLES =====
+        const particles = [];
+        function createExplosion(position) {
+            for (let i = 0; i < 20; i++) {
+                const geometry = new THREE.SphereGeometry(0.1, 4, 4);
+                const material = new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xdc9664 : 0xdcb864 });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(position);
+                scene.add(mesh);
+                particles.push({
+                    mesh,
+                    velocity: new THREE.Vector3((Math.random() - 0.5) * 0.3, Math.random() * 0.4, (Math.random() - 0.5) * 0.3),
+                    life: 60
+                });
+            }
+        }
+
+        function updateParticles() {
+            particles.forEach((p, idx) => {
+                p.mesh.position.add(p.velocity);
+                p.velocity.y -= 0.01;
+                p.life--;
+                p.mesh.material.opacity = p.life / 60;
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(idx, 1);
+                }
+            });
+        }
+
+        // ===== BOMBS =====
+        const bombs = [];
+        function dropBomb() {
+            if (gameState.bombs <= 0) return;
+            gameState.bombs--;
+            document.getElementById('bombCount').textContent = gameState.bombs;
+            
+            const geometry = new THREE.SphereGeometry(0.5, 8, 8);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0xb488c8,
+                emissive: 0xb488c8,
+                emissiveIntensity: 0.8
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(camera.position);
+            scene.add(mesh);
+            bombs.push({ mesh, timer: 90 });
+        }
+
+        function updateBombs() {
+            bombs.forEach((bomb, idx) => {
+                bomb.timer--;
+                bomb.mesh.scale.set(1 + Math.sin(bomb.timer * 0.2) * 0.1, 1 + Math.sin(bomb.timer * 0.2) * 0.1, 1 + Math.sin(bomb.timer * 0.2) * 0.1);
+                
+                if (bomb.timer <= 0) {
+                    enemies.forEach(enemy => {
+                        if (bomb.mesh.position.distanceTo(enemy.position) < 15) {
+                            enemy.health = 0;
+                        }
+                    });
+                    createExplosion(bomb.mesh.position);
+                    scene.remove(bomb.mesh);
+                    bombs.splice(idx, 1);
+                }
+            });
+        }
+
+        // ===== TRAPS =====
+        const traps = [];
+        function createTrap() {
+            const geometry = new THREE.CylinderGeometry(1.5, 1.5, 0.1, 16);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x8a4a4a,
+                emissive: 0x6a2a2a,
+                emissiveIntensity: 0.4,
+                transparent: true,
+                opacity: 0.7
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            let x, z;
+            do {
+                x = (Math.random() - 0.5) * ARENA_SIZE * 1.5;
+                z = (Math.random() - 0.5) * ARENA_SIZE * 1.5;
+            } while (Math.abs(x - SAFE_ROOM.x) < SAFE_ROOM.width && Math.abs(z - SAFE_ROOM.z) < SAFE_ROOM.depth);
+            mesh.position.set(x, 0.05, z);
+            scene.add(mesh);
+            traps.push({ mesh, triggered: false });
+        }
+
+        function updateTraps() {
+            traps.forEach(trap => {
+                if (!trap.triggered && trap.mesh.position.distanceTo(camera.position) < 2 && !gameState.shieldActive) {
+                    trap.triggered = true;
+                    gameState.health -= 25;
+                    trap.mesh.material.emissiveIntensity = 1;
+                    setTimeout(() => {
+                        scene.remove(trap.mesh);
+                        traps.splice(traps.indexOf(trap), 1);
+                    }, 500);
+                }
+            });
+        }
+
+        // ===== SAFE ROOM =====
+        function updateSafeRoomStatus() {
+            const inRoom = 
+                Math.abs(camera.position.x - SAFE_ROOM.x) < SAFE_ROOM.width / 2 &&
+                Math.abs(camera.position.z - SAFE_ROOM.z) < SAFE_ROOM.depth / 2;
+            
+            gameState.inSafeRoom = inRoom;
+            document.getElementById('safeRoomStatus').style.display = inRoom ? 'block' : 'none';
+            document.getElementById('answerInSafeRoom').style.display = inRoom ? 'block' : 'none';
+        }
+
+        // ===== QUESTION SYSTEM =====
+        let currentQuestion = null;
+        let answeredInSafeRoom = false;
+
+        function showQuestion(fromSafeRoom) {
+            answeredInSafeRoom = fromSafeRoom;
+            gameState.paused = true;
+            currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+            
+            document.getElementById('questionText').textContent = currentQuestion.question;
+            const buttonsContainer = document.getElementById('answerButtons');
+            buttonsContainer.innerHTML = '';
+            
+            currentQuestion.answers.forEach((answer, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'answer-btn';
+                btn.textContent = answer;
+                btn.onclick = () => checkAnswer(idx, btn);
+                buttonsContainer.appendChild(btn);
+            });
+            
+            document.getElementById('questionModal').style.display = 'flex';
+        }
+
+        function checkAnswer(selectedIdx, btn) {
+            const correct = selectedIdx === currentQuestion.correct;
+            const allBtns = document.querySelectorAll('.answer-btn');
+            
+            allBtns.forEach((b, idx) => {
+                b.disabled = true;
+                if (idx === currentQuestion.correct) {
+                    b.classList.add('correct');
+                } else if (b === btn && !correct) {
+                    b.classList.add('wrong');
+                }
+            });
+            
+            setTimeout(() => {
+                if (correct) {
+                    gameState.correct++;
+                    gameState.streak++;
+                    const bonus = answeredInSafeRoom ? 150 : 100;
+                    gameState.score += bonus + (gameState.streak * 10);
+                    gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 10);
+                    gameState.health = Math.min(gameState.maxHealth, gameState.health + (answeredInSafeRoom ? 20 : 10));
+                    if (answeredInSafeRoom) gameState.bombs = Math.min(5, gameState.bombs + 1);
+                } else {
+                    gameState.wrong++;
+                    gameState.streak = 0;
+                }
+                
+                document.getElementById('questionModal').style.display = 'none';
+                gameState.paused = false;
+                answeredInSafeRoom = false;
+                
+                if (enemies.length < 8) createEnemy();
+            }, 1500);
+        }
+
+        // ===== TOUCH CONTROLS =====
+        const touchState = {
+            joystick: { active: false, id: null, currentX: 0, currentY: 0 },
+            look: { active: false, id: null, lastX: 0, lastY: 0, deltaX: 0, deltaY: 0 }
+        };
+
+        const joystickThumb = document.querySelector('.joystick-thumb');
+
+        document.getElementById('joystickZone').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!touchState.joystick.active) {
+                const touch = e.changedTouches[0];
+                touchState.joystick.active = true;
+                touchState.joystick.id = touch.identifier;
+            }
+        }, { passive: false });
+
+        document.getElementById('joystickZone').addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === touchState.joystick.id) {
+                    const rect = document.getElementById('joystickContainer').getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const dx = touch.clientX - centerX;
+                    const dy = touch.clientY - centerY;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const maxDist = 40;
+                    const clampedDist = Math.min(dist, maxDist);
+                    const angle = Math.atan2(dy, dx);
+                    
+                    touchState.joystick.currentX = (Math.cos(angle) * clampedDist) / maxDist;
+                    touchState.joystick.currentY = (Math.sin(angle) * clampedDist) / maxDist;
+                    joystickThumb.style.transform = `translate(calc(-50% + ${Math.cos(angle)*clampedDist}px), calc(-50% + ${Math.sin(angle)*clampedDist}px))`;
+                }
+            }
+        }, { passive: false });
+
+        document.getElementById('joystickZone').addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === touchState.joystick.id) {
+                    touchState.joystick.active = false;
+                    touchState.joystick.currentX = 0;
+                    touchState.joystick.currentY = 0;
+                    joystickThumb.style.transform = 'translate(-50%, -50%)';
+                }
+            }
+        }, { passive: false });
+
+        document.getElementById('lookZone').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!touchState.look.active) {
+                const touch = e.changedTouches[0];
+                touchState.look.active = true;
+                touchState.look.id = touch.identifier;
+                touchState.look.lastX = touch.clientX;
+                touchState.look.lastY = touch.clientY;
+            }
+        }, { passive: false });
+
+        document.getElementById('lookZone').addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === touchState.look.id) {
+                    touchState.look.deltaX = (touch.clientX - touchState.look.lastX) * 0.006;
+                    touchState.look.deltaY = (touch.clientY - touchState.look.lastY) * 0.006;
+                    touchState.look.lastX = touch.clientX;
+                    touchState.look.lastY = touch.clientY;
+                }
+            }
+        }, { passive: false });
+
+        document.getElementById('lookZone').addEventListener('touchend', (e) => {
+            e.preventDefault();
+            for (const touch of e.changedTouches) {
+                if (touch.identifier === touchState.look.id) {
+                    touchState.look.active = false;
+                    touchState.look.deltaX = 0;
+                    touchState.look.deltaY = 0;
+                }
+            }
+        }, { passive: false });
+
+        let shootInterval = null;
+        document.getElementById('shootButton').addEventListener('touchstart', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            createProjectile();
+            shootInterval = setInterval(createProjectile, gameState.godBeamActive ? 20 : 120);
+        }, { passive: false });
+        
+        document.getElementById('shootButton').addEventListener('touchend', (e) => { e.preventDefault(); clearInterval(shootInterval); }, { passive: false });
+        document.getElementById('bombButton').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); dropBomb(); }, { passive: false });
+        document.getElementById('questionButton').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); showQuestion(false); }, { passive: false });
+        document.getElementById('answerInSafeRoom').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); if (gameState.inSafeRoom) showQuestion(true); }, { passive: false });
+
+        // ===== MINIMAP =====
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        minimapCanvas.width = 90; minimapCanvas.height = 90;
+
+        function updateMinimap() {
+            minimapCtx.fillStyle = 'rgba(20, 40, 20, 0.95)';
+            minimapCtx.fillRect(0, 0, 90, 90);
+            const scale = 90 / (ARENA_SIZE * 2);
+            const ox = 45, oy = 45;
+            
+            // Safe room
+            minimapCtx.fillStyle = 'rgba(140, 220, 100, 0.4)';
+            minimapCtx.fillRect((SAFE_ROOM.x - SAFE_ROOM.width/2) * scale + ox, (SAFE_ROOM.z - SAFE_ROOM.depth/2) * scale + oy, SAFE_ROOM.width * scale, SAFE_ROOM.depth * scale);
+            
+            enemies.forEach(e => {
+                minimapCtx.fillStyle = e.enemyType.kamikaze ? '#c86464' : '#dc9664';
+                minimapCtx.beginPath();
+                minimapCtx.arc(e.position.x * scale + ox, e.position.z * scale + oy, 2, 0, Math.PI * 2);
+                minimapCtx.fill();
+            });
+            
+            minimapCtx.fillStyle = '#8dc464';
+            minimapCtx.beginPath();
+            minimapCtx.arc(camera.position.x * scale + ox, camera.position.z * scale + oy, 3, 0, Math.PI * 2);
+            minimapCtx.fill();
+        }
+
+        // ===== MAIN LOOP =====
+        function checkLevelProgress() {
+            const newLevel = Math.floor((gameState.correct * 3 + gameState.score / 400) / 10) + 1;
+            if (newLevel > gameState.level && newLevel <= 10) {
+                gameState.level = newLevel;
+                const indicator = document.getElementById('levelIndicator');
+                indicator.textContent = `🌴 LEVEL ${newLevel} 🌴`;
+                indicator.classList.add('show');
+                setTimeout(() => indicator.classList.remove('show'), 2500);
+                generateLevel(newLevel);
+                gameState.health = Math.min(gameState.maxHealth, gameState.health + 30);
+                gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 20);
+                for (let i = 0; i < newLevel; i++) createTrap();
+            }
+        }
+        
+        let shieldMesh = null;
+        function updateShieldVisual() {
+            if (gameState.shieldActive && !shieldMesh) {
+                shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(2.5, 20, 20), new THREE.MeshBasicMaterial({ color: 0x8dc464, transparent: true, opacity: 0.2, wireframe: true }));
+                scene.add(shieldMesh);
+            }
+            if (shieldMesh) {
+                if (gameState.shieldActive) {
+                    shieldMesh.position.copy(camera.position);
+                    shieldMesh.rotation.y += 0.05;
+                } else {
+                    scene.remove(shieldMesh);
+                    shieldMesh = null;
+                }
+            }
+        }
+
+        function animate() {
+            if (gameState.gameOver) return;
+            if (gameState.paused) return;
+            
+            requestAnimationFrame(animate);
+
+            // Movement
+            if (touchState.joystick.currentX !== 0 || touchState.joystick.currentY !== 0) {
+                const moveDir = new THREE.Vector3(touchState.joystick.currentX, 0, touchState.joystick.currentY);
+                moveDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), camera.rotation.y);
+                const speed = (gameState.titanMode ? 0.35 : 0.18) * gameState.speedMultiplier;
+                camera.position.addScaledVector(moveDir, speed);
+                camera.position.x = Math.max(-ARENA_SIZE + 2, Math.min(ARENA_SIZE - 2, camera.position.x));
+                camera.position.z = Math.max(-ARENA_SIZE + 2, Math.min(ARENA_SIZE - 2, camera.position.z));
+            }
+
+            camera.rotation.order = 'YXZ';
+            camera.rotation.y -= touchState.look.deltaX;
+            camera.rotation.x -= touchState.look.deltaY;
+            camera.rotation.x = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, camera.rotation.x));
+            touchState.look.deltaX *= 0.7; touchState.look.deltaY *= 0.7;
+
+            updateEnemies();
+            updatePowerups();
+            updateProjectiles();
+            updateParticles();
+            updateBombs();
+            updateTraps();
+            updateShieldVisual();
+            updateMinimap();
+            updateSafeRoomStatus();
+            checkLevelProgress();
+
+            // UI
+            document.getElementById('health').textContent = Math.ceil(gameState.health);
+            document.getElementById('healthBar').style.width = (gameState.health / gameState.maxHealth * 100) + '%';
+            document.getElementById('ammo').textContent = gameState.ammo;
+            document.getElementById('ammoBar').style.width = (gameState.ammo / gameState.maxAmmo * 100) + '%';
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('streak').textContent = gameState.streak;
+            document.getElementById('level').textContent = gameState.level;
+            document.getElementById('enemyCount').textContent = enemies.length;
+            document.getElementById('correct').textContent = gameState.correct;
+            document.getElementById('wrong').textContent = gameState.wrong;
+
+            document.getElementById('powerupsList').innerHTML = gameState.activePowerups.map(p => {
+                const rem = Math.max(0, Math.ceil((p.endTime - Date.now()) / 1000));
+                return `<div class="powerup-item">${p.name} (${rem}s)</div>`;
+            }).join('');
+
+            if (gameState.health <= 0) {
+                gameState.gameOver = true;
+                document.getElementById('gameOverText').innerHTML = `
+                    <div style="font-size: 26px; margin-bottom: 12px;">🍂 GAME OVER 🍂</div>
+                    <div>Score: <span style="color: #8dc464;">${gameState.score}</span></div>
+                    <div>Level: <span style="color: #8dc464;">${gameState.level}</span></div>
+                `;
+                document.getElementById('gameMessage').style.display = 'block';
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        generateLevel(1);
+        for (let i = 0; i < 4; i++) createEnemy();
+        for (let i = 0; i < 2; i++) createTrap();
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    </script>
+</body>
+</html>
