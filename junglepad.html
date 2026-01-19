@@ -1,75 +1,315 @@
-// Add these variables to your GAME STATE section
-const pets = [];
-const PET_TYPES = [
-    { name: 'Wisp', color: 0x00ffff, glow: 1.5 },
-    { name: 'Phoenix Spirit', color: 0xff6600, glow: 1.2 },
-    { name: 'Forest Sprite', color: 0x88ff00, glow: 1.0 }
-];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ESL Jungle - Tablet Optimized</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+        html, body { width: 100%; height: 100%; position: fixed; overflow: hidden; touch-action: none; overscroll-behavior: none; font-family: 'Segoe UI', Arial, sans-serif; background: #1a3a1a; color: #fff; }
+        #gameContainer { width: 100%; height: 100%; position: relative; }
+        
+        /* Controls */
+        #joystickZone { position: absolute; bottom: 0; left: 0; width: 50%; height: 50%; z-index: 10; }
+        #joystickContainer { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; pointer-events: none; }
+        .joystick-base { width: 100%; height: 100%; background: rgba(100, 200, 100, 0.1); border: 2px solid rgba(140, 220, 100, 0.4); border-radius: 50%; position: relative; }
+        .joystick-thumb { width: 50px; height: 50px; background: #8dc464; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        #lookZone { position: absolute; top: 0; right: 0; width: 100%; height: 100%; z-index: 5; }
+        
+        /* Buttons */
+        .btn { position: absolute; z-index: 15; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid rgba(255,255,255,0.3); }
+        #shootButton { bottom: 30px; right: 30px; width: 90px; height: 90px; background: rgba(220, 140, 60, 0.6); font-size: 12px; }
+        #bombButton { bottom: 130px; right: 40px; width: 60px; height: 60px; background: rgba(180, 100, 200, 0.5); }
+        #questionButton { bottom: 130px; right: 110px; width: 50px; height: 50px; background: rgba(220, 200, 100, 0.5); }
+        #answerInSafeRoom { bottom: 210px; right: 40px; width: 70px; height: 70px; background: rgba(100, 200, 100, 0.6); display: none; font-size: 24px; }
+        
+        /* UI Panels */
+        #ui, #stats { position: absolute; top: 10px; background: rgba(20, 40, 20, 0.85); padding: 10px; border-radius: 8px; font-size: 11px; z-index: 20; pointer-events: none; border: 1px solid rgba(140, 220, 100, 0.3); }
+        #ui { left: 10px; width: 140px; }
+        #stats { right: 10px; text-align: right; }
+        .bar-container { width: 100%; height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; margin: 4px 0; overflow: hidden; }
+        .bar { height: 100%; width: 100%; transition: width 0.3s; }
+        #healthBar { background: #8dc464; }
+        #ammoBar { background: #c8823c; }
+        
+        #minimap { position: absolute; bottom: 20px; left: 160px; width: 70px; height: 70px; background: rgba(0,0,0,0.5); border: 1px solid #8dc464; border-radius: 4px; z-index: 5; }
+        
+        /* Modals */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: #2a4a2a; padding: 20px; border-radius: 12px; max-width: 90%; border: 2px solid #8dc464; text-align: center; }
+        .answer-option { background: rgba(255,255,255,0.1); padding: 12px; margin: 8px 0; border-radius: 6px; cursor: pointer; }
+        .correct { background: rgba(0,255,0,0.3); }
+        .incorrect { background: rgba(255,0,0,0.3); }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            HP <span id="health">100</span>
+            <div class="bar-container"><div id="healthBar" class="bar"></div></div>
+            AMMO <span id="ammo">50</span>
+            <div class="bar-container"><div id="ammoBar" class="bar"></div></div>
+        </div>
+        
+        <div id="stats">
+            Score: <span id="score">0</span><br>
+            Lvl: <span id="level">1</span><br>
+            Enemies: <span id="enemyCount">0</span>
+        </div>
 
-// Add this function after createEnemy
-function createPet() {
-    const type = PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)];
-    const petGroup = new THREE.Group();
+        <div id="minimap"><canvas id="minimapCanvas"></canvas></div>
+        
+        <div id="lookZone"></div>
+        <div id="joystickZone"></div>
+        <div id="joystickContainer"><div class="joystick-base"><div class="joystick-thumb"></div></div></div>
+        
+        <button id="shootButton" class="btn">🎯 SHOOT</button>
+        <button id="bombButton" class="btn">💣 <span id="bombCount">3</span></button>
+        <button id="questionButton" class="btn">❓</button>
+        <button id="answerInSafeRoom" class="btn">📝</button>
 
-    // Pet Core
-    const core = new THREE.Mesh(
-        new THREE.SphereGeometry(0.2, 16, 16),
-        new THREE.MeshStandardMaterial({
-            color: type.color,
-            emissive: type.color,
-            emissiveIntensity: type.glow,
-            transparent: true,
-            opacity: 0.8
-        })
-    );
-    petGroup.add(core);
+        <div id="questionModal" class="modal">
+            <div class="modal-content">
+                <h3 id="modalTitle">Grammar Quest</h3>
+                <p id="questionText" style="margin: 15px 0;"></p>
+                <div id="answersContainer"></div>
+            </div>
+        </div>
+    </div>
 
-    // Orbiting Rings
-    const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(0.35, 0.02, 16, 32),
-        new THREE.MeshStandardMaterial({ color: type.color, emissive: type.color })
-    );
-    ring.rotation.x = Math.PI / 2;
-    petGroup.add(ring);
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Optimization: Cap pixel ratio for high-res tablets
+        const pixelRatio = Math.min(window.devicePixelRatio, 1.5);
+        
+        const QUESTIONS = [
+            { q: "She ___ to the store yesterday.", a: ["goes", "went", "go", "going"], correct: 1 },
+            { q: "I saw ___ elephant.", a: ["a", "an", "the", "no article"], correct: 1 },
+            { q: "He ___ like pizza.", a: ["don't", "doesn't", "not", "no"], correct: 1 },
+            { q: "The book is ___ the table.", a: ["in", "at", "on", "by"], correct: 2 },
+            { q: "Plural of 'child'?", a: ["childs", "children", "childrens", "childer"], correct: 1 }
+        ];
 
-    // Pet Light
-    const petLight = new THREE.PointLight(type.color, 1, 5);
-    petGroup.add(petLight);
+        const state = {
+            score: 0, level: 1, health: 100, ammo: 50, bombs: 3,
+            correct: 0, inSafeRoom: false, paused: false, frameCount: 0
+        };
 
-    scene.add(petGroup);
-    
-    pets.push({
-        mesh: petGroup,
-        ring: ring,
-        light: petLight,
-        offset: new THREE.Vector3(1.5, 0.5, 2), // Position relative to camera
-        floatY: 0
-    });
-}
+        const ARENA_SIZE = 60;
+        const SAFE_ROOM = { x: 0, z: 45, w: 12, d: 12 };
 
-// Add this to your animate() function loop
-function updatePets() {
-    pets.forEach(pet => {
-        // Calculate target position (behind and to the side of the camera)
-        const targetPos = new THREE.Vector3().copy(camera.position);
-        const sideOffset = new THREE.Vector3(1, 0.5, 1.5).applyQuaternion(camera.quaternion);
-        targetPos.add(sideOffset);
+        // Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a2a1a);
+        scene.fog = new THREE.Fog(0x1a2a1a, 10, 80);
 
-        // Smoothly move pet toward target
-        pet.mesh.position.lerp(targetPos, 0.05);
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 150);
+        camera.position.set(0, 1.6, 0);
 
-        // Floating animation
-        pet.floatY += 0.05;
-        pet.mesh.position.y += Math.sin(pet.floatY) * 0.01;
+        const renderer = new THREE.WebGLRenderer({ antialias: false }); // Antialias off for performance
+        renderer.setPixelRatio(pixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.BasicShadowMap; // Fast shadows
+        document.getElementById('gameContainer').appendChild(renderer.domElement);
 
-        // Rotate the ring
-        pet.ring.rotation.z += 0.05;
-        pet.ring.rotation.x += 0.02;
+        // Lighting - Minimal
+        const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambient);
 
-        // Pulse the light
-        pet.light.intensity = 1 + Math.sin(pet.floatY) * 0.5;
-    });
-}
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(20, 40, 20);
+        sun.castShadow = true;
+        sun.shadow.mapSize.width = 512; // Small shadow map
+        sun.shadow.mapSize.height = 512;
+        scene.add(sun);
 
-// Call createPet() once at the bottom of your script
-createPet();
+        // Ground
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(ARENA_SIZE*2, ARENA_SIZE*2),
+            new THREE.MeshStandardMaterial({ color: 0x2a3a2a })
+        );
+        floor.rotation.x = -Math.PI/2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Trees (Simple)
+        function createTree(x, z) {
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 5, 6), new THREE.MeshStandardMaterial({color: 0x3d2b1f}));
+            trunk.position.set(x, 2.5, z);
+            const foliage = new THREE.Mesh(new THREE.SphereGeometry(2, 6, 6), new THREE.MeshStandardMaterial({color: 0x2d4c2d}));
+            foliage.position.set(x, 6, z);
+            trunk.castShadow = true;
+            scene.add(trunk); scene.add(foliage);
+        }
+        for(let i=0; i<20; i++) {
+            createTree((Math.random()-0.5)*100, (Math.random()-0.5)*100);
+        }
+
+        // Enemies & Game Logic
+        const enemies = [];
+        const projectiles = [];
+        
+        function spawnEnemy() {
+            const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+            const material = new THREE.MeshStandardMaterial({ color: 0xff4444 });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set((Math.random()-0.5)*80, 0.75, (Math.random()-0.5)*80);
+            mesh.castShadow = true;
+            scene.add(mesh);
+            enemies.push({ mesh, health: 20 });
+        }
+
+        function fire() {
+            if (state.ammo <= 0) return;
+            state.ammo--;
+            const proj = new THREE.Mesh(new THREE.SphereGeometry(0.2, 4, 4), new THREE.MeshBasicMaterial({color: 0xffff00}));
+            proj.position.copy(camera.position);
+            const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+            projectiles.push({ mesh: proj, dir, time: 0 });
+            scene.add(proj);
+        }
+
+        // Touch Input
+        const touch = { joyX: 0, joyY: 0, lookDX: 0, lookDY: 0, active: false };
+        
+        window.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            if (t.clientX < window.innerWidth/2) {
+                touch.active = true;
+                touch.startX = t.clientX; touch.startY = t.clientY;
+            }
+        });
+
+        window.addEventListener('touchmove', e => {
+            for (let t of e.touches) {
+                if (t.clientX < window.innerWidth/2) {
+                    const dx = t.clientX - touch.startX;
+                    const dy = t.clientY - touch.startY;
+                    const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 40);
+                    const angle = Math.atan2(dy, dx);
+                    touch.joyX = Math.cos(angle) * (dist/40);
+                    touch.joyY = Math.sin(angle) * (dist/40);
+                    document.querySelector('.joystick-thumb').style.transform = `translate(-50%, -50%) translate(${touch.joyX*40}px, ${touch.joyY*40}px)`;
+                } else {
+                    // Look logic
+                    touch.lookDX = (t.clientX - (touch.lastX || t.clientX)) * 0.005;
+                    touch.lookDY = (t.clientY - (touch.lastY || t.clientY)) * 0.005;
+                    touch.lastX = t.clientX; touch.lastY = t.clientY;
+                }
+            }
+        });
+
+        window.addEventListener('touchend', () => {
+            touch.active = false; touch.joyX = 0; touch.joyY = 0; touch.lastX = null;
+            document.querySelector('.joystick-thumb').style.transform = 'translate(-50%, -50%)';
+        });
+
+        document.getElementById('shootButton').addEventListener('touchstart', (e) => { e.preventDefault(); fire(); });
+
+        // Questions
+        function openQuestion() {
+            state.paused = true;
+            const q = QUESTIONS[Math.floor(Math.random()*QUESTIONS.length)];
+            document.getElementById('questionText').innerText = q.q;
+            const container = document.getElementById('answersContainer');
+            container.innerHTML = '';
+            q.a.forEach((ans, i) => {
+                const b = document.createElement('div');
+                b.className = 'answer-option';
+                b.innerText = ans;
+                b.onclick = () => {
+                    if (i === q.correct) {
+                        state.score += 50; state.ammo += 10;
+                        b.classList.add('correct');
+                    } else {
+                        b.classList.add('incorrect');
+                    }
+                    setTimeout(() => { 
+                        state.paused = false; 
+                        document.getElementById('questionModal').style.display = 'none';
+                    }, 1000);
+                };
+                container.appendChild(b);
+            });
+            document.getElementById('questionModal').style.display = 'flex';
+        }
+        document.getElementById('questionButton').onclick = openQuestion;
+
+        // Main Loop
+        function update() {
+            if (state.paused) return;
+            state.frameCount++;
+
+            // Movement
+            if (touch.joyX || touch.joyY) {
+                const dir = new THREE.Vector3(touch.joyX, 0, touch.joyY).applyAxisAngle(new THREE.Vector3(0,1,0), camera.rotation.y);
+                camera.position.addScaledVector(dir, 0.15);
+            }
+            camera.rotation.y -= touch.lookDX;
+            camera.rotation.x = Math.max(-1, Math.min(1, camera.rotation.x - touch.lookDY));
+            touch.lookDX *= 0.8; touch.lookDY *= 0.8;
+
+            // Projectiles
+            for(let i = projectiles.length-1; i>=0; i--) {
+                const p = projectiles[i];
+                p.mesh.position.addScaledVector(p.dir, 0.6);
+                p.time++;
+                if (p.time > 100) {
+                    scene.remove(p.mesh);
+                    projectiles.splice(i, 1);
+                }
+            }
+
+            // Enemies
+            for(let i = enemies.length-1; i>=0; i--) {
+                const e = enemies[i];
+                const moveDir = new THREE.Vector3().subVectors(camera.position, e.mesh.position).normalize();
+                e.mesh.position.addScaledVector(moveDir, 0.05);
+                
+                // Hit check
+                projectiles.forEach((p, pi) => {
+                    if (p.mesh.position.distanceTo(e.mesh.position) < 1.5) {
+                        e.health -= 10;
+                        scene.remove(p.mesh);
+                        projectiles.splice(pi, 1);
+                    }
+                });
+
+                if (e.health <= 0) {
+                    scene.remove(e.mesh);
+                    enemies.splice(i, 1);
+                    state.score += 10;
+                }
+                
+                if (e.mesh.position.distanceTo(camera.position) < 2) state.health -= 0.1;
+            }
+
+            if (enemies.length < 5) spawnEnemy();
+
+            // Throttled UI Updates (every 10 frames)
+            if (state.frameCount % 10 === 0) {
+                document.getElementById('health').innerText = Math.ceil(state.health);
+                document.getElementById('healthBar').style.width = state.health + "%";
+                document.getElementById('ammo').innerText = state.ammo;
+                document.getElementById('score').innerText = state.score;
+                document.getElementById('enemyCount').innerText = enemies.length;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
