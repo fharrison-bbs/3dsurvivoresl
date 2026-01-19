@@ -1715,10 +1715,13 @@
         }
 
         function animate() {
-            if (gameState.gameOver) return;
-            if (gameState.paused) return;
-            
             requestAnimationFrame(animate);
+            
+            if (gameState.gameOver) return;
+            if (gameState.paused) {
+                renderer.render(scene, camera);
+                return;
+            }
 
             // Movement
             if (touchState.joystick.currentX !== 0 || touchState.joystick.currentY !== 0) {
