@@ -1135,6 +1135,9 @@
 
             // Safe room - cabin structure instead of markers
             createCabin();
+            
+            // Obstacles - biome-specific structures
+            createBiomeObstacles(biome, level);
         }
 
         function createCabin() {
@@ -1377,10 +1380,6 @@
             glowRing.rotation.x = Math.PI / 2;
             scene.add(glowRing);
             levelObjects.push(glowRing);
-        }
-
-            // Obstacles - biome-specific structures
-            createBiomeObstacles(biome, level);
         }
 
         function createBiomeObstacles(biome, level) {
