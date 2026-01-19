@@ -501,6 +501,75 @@
             transform: scale(0.98);
         }
         
+        #weaponUpgradeModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        #weaponUpgradeModal .modal-content {
+            max-width: 400px;
+        }
+        
+        .upgrade-option {
+            background: rgba(140, 220, 100, 0.2);
+            border: 2px solid rgba(140, 220, 100, 0.4);
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .upgrade-info {
+            flex: 1;
+        }
+        
+        .upgrade-name {
+            font-weight: bold;
+            font-size: 14px;
+            color: #8dc464;
+        }
+        
+        .upgrade-level {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 2px;
+        }
+        
+        .upgrade-button {
+            background: #8dc464;
+            color: #1a3a1a;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .upgrade-button:active {
+            transform: scale(0.95);
+        }
+        
+        .upgrade-button.max-level {
+            background: #666;
+            color: #999;
+        }
+        
+        .upgrade-button.cannot-afford {
+            background: #884444;
+            color: #ffaaaa;
+        }
+        
         @keyframes bossAnnounce {
             0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
             50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
@@ -546,7 +615,7 @@
             <canvas id="minimapCanvas"></canvas>
         </div>
         
-        <div id="safeRoomIndicator">🏡 SAFE ROOM</div>
+        <div id="safeRoomIndicator">🏠 Safe Cabin - No Enemies!</div>
         <div id="levelIndicator">🌳 Amazon Rainforest - LEVEL 1</div>
         
         <!-- Touch Controls -->
@@ -592,6 +661,17 @@
                 <div id="questionText" class="question-text"></div>
                 <div id="answersContainer"></div>
                 <button class="close-modal" id="closeQuestion" style="display: none;">Continue</button>
+            </div>
+        </div>
+        
+        <div id="weaponUpgradeModal" class="modal">
+            <div class="modal-content">
+                <h2>🔧 Weapon Upgrade Bench</h2>
+                <div style="margin-bottom: 16px; font-size: 12px; color: #aaa;">
+                    Current Score: <span id="upgradeScore" style="color: #8dc464;">0</span>
+                </div>
+                <div id="upgradeOptions"></div>
+                <button class="close-modal" id="closeUpgrade">Close</button>
             </div>
         </div>
     </div>
@@ -781,61 +861,95 @@
         ];
         
         let currentWeaponIndex = 0;
+        const weaponUpgrades = {
+            damage: 0,
+            fireRate: 0,
+            projectileSpeed: 0,
+            ammoEfficiency: 0
+        };
+        const UPGRADE_COSTS = {
+            damage: [50, 100, 200, 400, 800],
+            fireRate: [50, 100, 200, 400, 800],
+            projectileSpeed: [50, 100, 200, 400, 800],
+            ammoEfficiency: [50, 100, 200, 400, 800]
+        };
 
-        // ===== FAMILIAR SYSTEM =====
+        function getUpgradedWeapon() {
+            const weapon = { ...WEAPONS[currentWeaponIndex] };
+            weapon.damage += weaponUpgrades.damage * 5;
+            weapon.fireRate = Math.max(20, weapon.fireRate - weaponUpgrades.fireRate * 15);
+            weapon.projectileSpeed += weaponUpgrades.projectileSpeed * 0.2;
+            weapon.ammoUse = Math.max(1, weapon.ammoUse - weaponUpgrades.ammoEfficiency);
+            return weapon;
+        }
+
+        function upgradeWeapon(upgradeType) {
+            const level = weaponUpgrades[upgradeType];
+            if (level >= 5) return false; // Max level
+            
+            const cost = UPGRADE_COSTS[upgradeType][level];
+            if (gameState.score < cost) return false;
+            
+            gameState.score -= cost;
+            weaponUpgrades[upgradeType]++;
+            updateWeaponDisplay();
+            return true;
+        }
+
+        // ===== FAMILIAR SYSTEM - CAPYBARA COMPANIONS =====
         const FAMILIAR_TYPES = [
             {
-                name: '🐉 Fire Drake',
-                color: 0xff4444,
-                size: 0.6,
+                name: '🔥 Fire Capybara',
+                color: 0xff6644,
+                size: 0.5,
                 speed: 0.12,
                 ability: 'attack',
-                damage: 5,
+                damage: 8,
                 cooldown: 2000,
                 orbitDistance: 3,
                 description: 'Shoots fireballs at enemies'
             },
             {
-                name: '💚 Healing Sprite',
-                color: 0x44ff44,
+                name: '💚 Vine Capybara',
+                color: 0x44ff88,
                 size: 0.5,
                 speed: 0.15,
-                ability: 'heal',
-                healAmount: 2,
-                cooldown: 3000,
+                ability: 'attack',
+                damage: 6,
+                cooldown: 1800,
                 orbitDistance: 2.5,
-                description: 'Heals you over time'
+                description: 'Shoots vines at enemies, heals on kill'
             },
             {
-                name: '✨ Loot Fairy',
+                name: '✨ Golden Capybara',
                 color: 0xffdd44,
-                size: 0.4,
+                size: 0.5,
                 speed: 0.2,
-                ability: 'collect',
-                collectRange: 8,
-                cooldown: 1000,
+                ability: 'attack',
+                damage: 7,
+                cooldown: 2200,
                 orbitDistance: 2,
-                description: 'Collects nearby powerups'
+                description: 'Shoots golden projectiles at enemies'
             },
             {
-                name: '⚔️ Battle Golem',
+                name: '⚔️ Tank Capybara',
                 color: 0x8844ff,
-                size: 0.8,
+                size: 0.6,
                 speed: 0.1,
                 ability: 'tank',
-                damage: 8,
+                damage: 12,
                 defense: 0.5,
                 cooldown: 1500,
                 orbitDistance: 4,
-                description: 'Attacks enemies and blocks damage'
+                description: 'Charges at enemies and bites them'
             },
             {
-                name: '⚡ Lightning Wisp',
+                name: '⚡ Lightning Capybara',
                 color: 0x44ddff,
-                size: 0.45,
+                size: 0.5,
                 speed: 0.18,
                 ability: 'chain',
-                damage: 6,
+                damage: 10,
                 chainCount: 3,
                 cooldown: 2500,
                 orbitDistance: 2.8,
@@ -1019,41 +1133,251 @@
                 }
             });
 
-            // Safe room markers with biome colors
-            const markerGeometry = new THREE.CylinderGeometry(0.6, 0.8, 8, 8);
-            const markerMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x8dc464, 
-                emissive: 0x6aa050, 
-                emissiveIntensity: 0.8,
-                roughness: 0.4,
-                metalness: 0.3
+            // Safe room - cabin structure instead of markers
+            createCabin();
+        }
+
+        function createCabin() {
+            // Cabin base/floor
+            const cabinFloor = new THREE.Mesh(
+                new THREE.BoxGeometry(SAFE_ROOM.width, 0.3, SAFE_ROOM.depth),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x5a4a3a,
+                    roughness: 0.9,
+                    metalness: 0.1
+                })
+            );
+            cabinFloor.position.set(SAFE_ROOM.x, 0.15, SAFE_ROOM.z);
+            cabinFloor.receiveShadow = true;
+            scene.add(cabinFloor);
+            levelObjects.push(cabinFloor);
+            
+            // Cabin walls
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x6a5a4a,
+                roughness: 0.85,
+                metalness: 0.1
             });
-            [
-                [-SAFE_ROOM.width/2, SAFE_ROOM.depth/2],
-                [SAFE_ROOM.width/2, SAFE_ROOM.depth/2],
-                [-SAFE_ROOM.width/2, -SAFE_ROOM.depth/2],
-                [SAFE_ROOM.width/2, -SAFE_ROOM.depth/2]
-            ].forEach(([dx, dz]) => {
-                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-                marker.position.set(SAFE_ROOM.x + dx, 4, SAFE_ROOM.z + dz);
-                marker.castShadow = true;
-                scene.add(marker);
-                levelObjects.push(marker);
-                
-                // Add leaf decoration on top
-                const leaf = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.8, 8, 8),
+            
+            // Back wall
+            const backWall = new THREE.Mesh(
+                new THREE.BoxGeometry(SAFE_ROOM.width, 5, 0.5),
+                wallMaterial
+            );
+            backWall.position.set(SAFE_ROOM.x, 2.5, SAFE_ROOM.z - SAFE_ROOM.depth/2);
+            backWall.castShadow = true;
+            backWall.receiveShadow = true;
+            scene.add(backWall);
+            levelObjects.push(backWall);
+            
+            // Left wall
+            const leftWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 5, SAFE_ROOM.depth),
+                wallMaterial
+            );
+            leftWall.position.set(SAFE_ROOM.x - SAFE_ROOM.width/2, 2.5, SAFE_ROOM.z);
+            leftWall.castShadow = true;
+            leftWall.receiveShadow = true;
+            scene.add(leftWall);
+            levelObjects.push(leftWall);
+            
+            // Right wall
+            const rightWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 5, SAFE_ROOM.depth),
+                wallMaterial
+            );
+            rightWall.position.set(SAFE_ROOM.x + SAFE_ROOM.width/2, 2.5, SAFE_ROOM.z);
+            rightWall.castShadow = true;
+            rightWall.receiveShadow = true;
+            scene.add(rightWall);
+            levelObjects.push(rightWall);
+            
+            // Front wall with door opening (split into two parts)
+            const doorWidth = 4;
+            const wallSegmentWidth = (SAFE_ROOM.width - doorWidth) / 2;
+            
+            // Left front wall segment
+            const frontWallLeft = new THREE.Mesh(
+                new THREE.BoxGeometry(wallSegmentWidth, 5, 0.5),
+                wallMaterial
+            );
+            frontWallLeft.position.set(SAFE_ROOM.x - SAFE_ROOM.width/2 + wallSegmentWidth/2, 2.5, SAFE_ROOM.z + SAFE_ROOM.depth/2);
+            frontWallLeft.castShadow = true;
+            frontWallLeft.receiveShadow = true;
+            scene.add(frontWallLeft);
+            levelObjects.push(frontWallLeft);
+            
+            // Right front wall segment
+            const frontWallRight = new THREE.Mesh(
+                new THREE.BoxGeometry(wallSegmentWidth, 5, 0.5),
+                wallMaterial
+            );
+            frontWallRight.position.set(SAFE_ROOM.x + SAFE_ROOM.width/2 - wallSegmentWidth/2, 2.5, SAFE_ROOM.z + SAFE_ROOM.depth/2);
+            frontWallRight.castShadow = true;
+            frontWallRight.receiveShadow = true;
+            scene.add(frontWallRight);
+            levelObjects.push(frontWallRight);
+            
+            // Door frame
+            const doorFrameMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a3a2a,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            
+            // Top of door frame
+            const doorTop = new THREE.Mesh(
+                new THREE.BoxGeometry(doorWidth, 0.3, 0.5),
+                doorFrameMaterial
+            );
+            doorTop.position.set(SAFE_ROOM.x, 4, SAFE_ROOM.z + SAFE_ROOM.depth/2);
+            scene.add(doorTop);
+            levelObjects.push(doorTop);
+            
+            // Door sides
+            for (let side = -1; side <= 1; side += 2) {
+                const doorSide = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.3, 4, 0.5),
+                    doorFrameMaterial
+                );
+                doorSide.position.set(SAFE_ROOM.x + side * doorWidth/2, 2, SAFE_ROOM.z + SAFE_ROOM.depth/2);
+                scene.add(doorSide);
+                levelObjects.push(doorSide);
+            }
+            
+            // Actual door (open position for now)
+            const door = new THREE.Mesh(
+                new THREE.BoxGeometry(doorWidth - 0.6, 3.8, 0.3),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x5a4a3a,
+                    roughness: 0.7,
+                    metalness: 0.3
+                })
+            );
+            door.position.set(SAFE_ROOM.x - doorWidth/2 + 0.2, 2, SAFE_ROOM.z + SAFE_ROOM.depth/2 + 0.5);
+            door.rotation.y = Math.PI / 2.5; // Door open
+            door.castShadow = true;
+            scene.add(door);
+            levelObjects.push(door);
+            
+            // Door handle
+            const doorHandle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 8, 8),
+                new THREE.MeshStandardMaterial({ color: 0xccaa88, metalness: 0.8, roughness: 0.2 })
+            );
+            doorHandle.position.set(SAFE_ROOM.x + doorWidth/2 - 0.8, 2, SAFE_ROOM.z + SAFE_ROOM.depth/2);
+            scene.add(doorHandle);
+            levelObjects.push(doorHandle);
+            
+            // Roof
+            const roofGeometry = new THREE.ConeGeometry(SAFE_ROOM.width * 0.7, 2, 4);
+            const roofMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a3a2a,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+            roof.position.set(SAFE_ROOM.x, 6.5, SAFE_ROOM.z);
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            scene.add(roof);
+            levelObjects.push(roof);
+            
+            // Weapon bench inside cabin
+            createWeaponBench();
+            
+            // Lanterns at door
+            for (let side = -1; side <= 1; side += 2) {
+                const lantern = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.2, 0.25, 0.5, 8),
                     new THREE.MeshStandardMaterial({ 
-                        color: 0x8dc464,
-                        emissive: 0x6aa050,
-                        emissiveIntensity: 0.6
+                        color: 0xffdd88,
+                        emissive: 0xffaa44,
+                        emissiveIntensity: 0.8
                     })
                 );
-                leaf.position.set(SAFE_ROOM.x + dx, 8.5, SAFE_ROOM.z + dz);
-                leaf.castShadow = true;
-                scene.add(leaf);
-                levelObjects.push(leaf);
+                lantern.position.set(SAFE_ROOM.x + side * (doorWidth/2 + 0.5), 3.5, SAFE_ROOM.z + SAFE_ROOM.depth/2);
+                scene.add(lantern);
+                levelObjects.push(lantern);
+            }
+        }
+
+        function createWeaponBench() {
+            // Bench table
+            const benchTop = new THREE.Mesh(
+                new THREE.BoxGeometry(3, 0.3, 2),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x5a4a3a,
+                    roughness: 0.8,
+                    metalness: 0.2
+                })
+            );
+            benchTop.position.set(SAFE_ROOM.x - 4, 1.5, SAFE_ROOM.z);
+            benchTop.castShadow = true;
+            benchTop.receiveShadow = true;
+            scene.add(benchTop);
+            levelObjects.push(benchTop);
+            
+            // Bench legs
+            const legPositions = [
+                [-1.3, -0.5],
+                [1.3, -0.5],
+                [-1.3, 0.5],
+                [1.3, 0.5]
+            ];
+            
+            legPositions.forEach(([x, z]) => {
+                const leg = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.15, 0.15, 1.5, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x4a3a2a })
+                );
+                leg.position.set(SAFE_ROOM.x - 4 + x, 0.75, SAFE_ROOM.z + z);
+                leg.castShadow = true;
+                scene.add(leg);
+                levelObjects.push(leg);
             });
+            
+            // Tool rack on wall behind bench
+            const toolRack = new THREE.Mesh(
+                new THREE.BoxGeometry(2.5, 1.5, 0.2),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x6a5a4a,
+                    roughness: 0.7
+                })
+            );
+            toolRack.position.set(SAFE_ROOM.x - 4, 2.5, SAFE_ROOM.z - SAFE_ROOM.depth/2 + 0.5);
+            scene.add(toolRack);
+            levelObjects.push(toolRack);
+            
+            // Weapon display on bench
+            const weaponDisplay = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 0.4, 0.3),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x888888,
+                    metalness: 0.6,
+                    roughness: 0.4
+                })
+            );
+            weaponDisplay.position.set(SAFE_ROOM.x - 4, 1.8, SAFE_ROOM.z);
+            scene.add(weaponDisplay);
+            levelObjects.push(weaponDisplay);
+            
+            // Glow effect to indicate interactivity
+            const glowRing = new THREE.Mesh(
+                new THREE.TorusGeometry(0.5, 0.1, 8, 16),
+                new THREE.MeshStandardMaterial({
+                    color: 0x8dc464,
+                    emissive: 0x8dc464,
+                    emissiveIntensity: 0.8,
+                    transparent: true,
+                    opacity: 0.6
+                })
+            );
+            glowRing.position.set(SAFE_ROOM.x - 4, 1.8, SAFE_ROOM.z);
+            glowRing.rotation.x = Math.PI / 2;
+            scene.add(glowRing);
+            levelObjects.push(glowRing);
+        }
 
             // Obstacles - biome-specific structures
             createBiomeObstacles(biome, level);
@@ -2137,7 +2461,7 @@
                     }
                     
                     // Boss damage to player
-                    if (boss.position.distanceTo(camera.position) < boss.enemyType.size + 2 && !gameState.shieldActive) {
+                    if (boss.position.distanceTo(camera.position) < boss.enemyType.size + 2 && !gameState.shieldActive && !gameState.inSafeRoom) {
                         gameState.health -= boss.enemyType.damage * 0.016;
                     }
                     
@@ -2216,7 +2540,7 @@
                     
                     enemy.mesh.rotation.y += 0.04;
                     
-                    if (enemy.position.distanceTo(camera.position) < enemy.enemyType.size + 1 && !gameState.shieldActive) {
+                    if (enemy.position.distanceTo(camera.position) < enemy.enemyType.size + 1 && !gameState.shieldActive && !gameState.inSafeRoom) {
                         gameState.health -= enemy.enemyType.damage * 0.016;
                         if (enemy.enemyType.kamikaze) {
                             scene.remove(enemy.mesh);
@@ -2248,50 +2572,186 @@
         function createFamiliar(type) {
             const familiar = FAMILIAR_TYPES[type];
             
-            // Create familiar mesh
-            const geometry = new THREE.SphereGeometry(familiar.size, 16, 16);
-            const material = new THREE.MeshStandardMaterial({
-                color: familiar.color,
-                emissive: familiar.color,
-                emissiveIntensity: 0.6,
-                metalness: 0.5,
-                roughness: 0.4
-            });
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.copy(camera.position);
-            mesh.castShadow = true;
-            scene.add(mesh);
+            // Create capybara-shaped familiar
+            const capybaraGroup = new THREE.Group();
             
-            // Add wings or details based on type
-            if (familiar.ability === 'attack') {
-                // Add wings for drake
-                for (let side = -1; side <= 1; side += 2) {
-                    const wing = new THREE.Mesh(
-                        new THREE.ConeGeometry(familiar.size * 0.5, familiar.size, 8),
-                        new THREE.MeshStandardMaterial({ color: familiar.color, transparent: true, opacity: 0.7 })
-                    );
-                    wing.rotation.z = side * Math.PI / 2;
-                    wing.position.set(side * familiar.size * 0.8, 0, 0);
-                    mesh.add(wing);
-                }
-            } else if (familiar.ability === 'heal') {
-                // Add glow rings for sprite
-                const ring = new THREE.Mesh(
-                    new THREE.TorusGeometry(familiar.size * 0.8, familiar.size * 0.15, 8, 16),
-                    new THREE.MeshStandardMaterial({ 
-                        color: familiar.color, 
-                        emissive: familiar.color,
-                        emissiveIntensity: 1,
-                        transparent: true, 
-                        opacity: 0.6 
-                    })
+            // Body (rectangular, capybara-like)
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(familiar.size * 1.5, familiar.size * 0.8, familiar.size),
+                new THREE.MeshStandardMaterial({
+                    color: familiar.color,
+                    roughness: 0.7,
+                    metalness: 0.2
+                })
+            );
+            body.castShadow = true;
+            capybaraGroup.add(body);
+            
+            // Head (rounded front)
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(familiar.size * 0.5, 12, 12),
+                new THREE.MeshStandardMaterial({
+                    color: familiar.color,
+                    roughness: 0.7,
+                    metalness: 0.2
+                })
+            );
+            head.scale.set(1, 0.9, 1.1);
+            head.position.set(familiar.size * 0.9, 0, 0);
+            head.castShadow = true;
+            capybaraGroup.add(head);
+            
+            // Ears (small rounded)
+            for (let side = -1; side <= 1; side += 2) {
+                const ear = new THREE.Mesh(
+                    new THREE.SphereGeometry(familiar.size * 0.15, 8, 8),
+                    new THREE.MeshStandardMaterial({ color: familiar.color })
                 );
-                ring.rotation.x = Math.PI / 2;
-                mesh.add(ring);
+                ear.position.set(familiar.size * 1.1, familiar.size * 0.4, side * familiar.size * 0.3);
+                capybaraGroup.add(ear);
             }
             
+            // Eyes (black, cute)
+            for (let side = -1; side <= 1; side += 2) {
+                const eye = new THREE.Mesh(
+                    new THREE.SphereGeometry(familiar.size * 0.08, 8, 8),
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0x000000,
+                        emissive: 0x000000,
+                        emissiveIntensity: 0.5
+                    })
+                );
+                eye.position.set(familiar.size * 1.3, familiar.size * 0.15, side * familiar.size * 0.2);
+                capybaraGroup.add(eye);
+            }
+            
+            // Nose (small brown/dark)
+            const nose = new THREE.Mesh(
+                new THREE.SphereGeometry(familiar.size * 0.1, 8, 8),
+                new THREE.MeshStandardMaterial({ 
+                    color: 0x332211,
+                    roughness: 0.5
+                })
+            );
+            nose.position.set(familiar.size * 1.4, 0, 0);
+            capybaraGroup.add(nose);
+            
+            // Legs (short and stubby like capybaras)
+            const legPositions = [
+                [familiar.size * 0.5, -familiar.size * 0.5, familiar.size * 0.35],
+                [familiar.size * 0.5, -familiar.size * 0.5, -familiar.size * 0.35],
+                [-familiar.size * 0.5, -familiar.size * 0.5, familiar.size * 0.35],
+                [-familiar.size * 0.5, -familiar.size * 0.5, -familiar.size * 0.35]
+            ];
+            
+            legPositions.forEach(([x, y, z]) => {
+                const leg = new THREE.Mesh(
+                    new THREE.CylinderGeometry(familiar.size * 0.15, familiar.size * 0.15, familiar.size * 0.4, 8),
+                    new THREE.MeshStandardMaterial({ color: familiar.color })
+                );
+                leg.position.set(x, y, z);
+                leg.castShadow = true;
+                capybaraGroup.add(leg);
+                
+                // Foot
+                const foot = new THREE.Mesh(
+                    new THREE.SphereGeometry(familiar.size * 0.15, 8, 8),
+                    new THREE.MeshStandardMaterial({ color: new THREE.Color(familiar.color).multiplyScalar(0.8) })
+                );
+                foot.scale.set(1, 0.5, 1.2);
+                foot.position.set(x, y - familiar.size * 0.25, z);
+                capybaraGroup.add(foot);
+            });
+            
+            // Tail (tiny)
+            const tail = new THREE.Mesh(
+                new THREE.SphereGeometry(familiar.size * 0.1, 8, 8),
+                new THREE.MeshStandardMaterial({ color: familiar.color })
+            );
+            tail.position.set(-familiar.size * 0.8, 0, 0);
+            capybaraGroup.add(tail);
+            
+            // Add special effects based on type
+            if (familiar.ability === 'attack') {
+                if (familiar.color === 0xff6644) {
+                    // Fire Capybara - flame effect
+                    const flame = new THREE.Mesh(
+                        new THREE.SphereGeometry(familiar.size * 0.3, 8, 8),
+                        new THREE.MeshStandardMaterial({ 
+                            color: 0xff8800,
+                            emissive: 0xff4400,
+                            emissiveIntensity: 1,
+                            transparent: true,
+                            opacity: 0.7
+                        })
+                    );
+                    flame.position.set(0, familiar.size * 0.6, 0);
+                    capybaraGroup.add(flame);
+                } else if (familiar.color === 0x44ff88) {
+                    // Vine Capybara - leaf effect
+                    const leaf = new THREE.Mesh(
+                        new THREE.SphereGeometry(familiar.size * 0.25, 8, 8),
+                        new THREE.MeshStandardMaterial({ 
+                            color: 0x44ff44,
+                            emissive: 0x22dd22,
+                            emissiveIntensity: 0.8,
+                            transparent: true,
+                            opacity: 0.7
+                        })
+                    );
+                    leaf.scale.set(1.5, 0.3, 1);
+                    leaf.position.set(0, familiar.size * 0.6, 0);
+                    capybaraGroup.add(leaf);
+                } else if (familiar.color === 0xffdd44) {
+                    // Golden Capybara - sparkle effect
+                    const sparkle = new THREE.Mesh(
+                        new THREE.OctahedronGeometry(familiar.size * 0.25, 0),
+                        new THREE.MeshStandardMaterial({ 
+                            color: 0xffff88,
+                            emissive: 0xffdd00,
+                            emissiveIntensity: 1.2,
+                            transparent: true,
+                            opacity: 0.8
+                        })
+                    );
+                    sparkle.position.set(0, familiar.size * 0.6, 0);
+                    capybaraGroup.add(sparkle);
+                }
+            } else if (familiar.ability === 'tank') {
+                // Tank Capybara - armor plates
+                const armor = new THREE.Mesh(
+                    new THREE.BoxGeometry(familiar.size * 0.8, familiar.size * 0.4, familiar.size * 0.5),
+                    new THREE.MeshStandardMaterial({
+                        color: 0x666688,
+                        metalness: 0.8,
+                        roughness: 0.3,
+                        transparent: true,
+                        opacity: 0.7
+                    })
+                );
+                armor.position.set(0, 0, 0);
+                capybaraGroup.add(armor);
+            } else if (familiar.ability === 'chain') {
+                // Lightning Capybara - sparks
+                const spark = new THREE.Mesh(
+                    new THREE.OctahedronGeometry(familiar.size * 0.2, 0),
+                    new THREE.MeshStandardMaterial({
+                        color: 0xffff88,
+                        emissive: 0xffff00,
+                        emissiveIntensity: 1.5,
+                        transparent: true,
+                        opacity: 0.8
+                    })
+                );
+                spark.position.y = familiar.size * 0.6;
+                capybaraGroup.add(spark);
+            }
+            
+            capybaraGroup.position.copy(camera.position);
+            scene.add(capybaraGroup);
+            
             familiars.push({
-                mesh,
+                mesh: capybaraGroup,
                 type: familiar,
                 angle: Math.random() * Math.PI * 2,
                 lastAbilityUse: 0,
@@ -2318,83 +2778,73 @@
                 if (now - familiar.lastAbilityUse > familiar.type.cooldown) {
                     familiar.lastAbilityUse = now;
                     
-                    switch(familiar.type.ability) {
-                        case 'attack':
-                            // Shoot at nearest enemy
-                            if (enemies.length > 0) {
-                                const nearest = enemies.reduce((closest, enemy) => {
-                                    const dist = familiar.mesh.position.distanceTo(enemy.position);
-                                    return dist < closest.dist ? { enemy, dist } : closest;
-                                }, { enemy: null, dist: Infinity });
+                    if (familiar.type.ability === 'attack') {
+                        // Shoot at nearest enemy
+                        if (enemies.length > 0) {
+                            const nearest = enemies.reduce((closest, enemy) => {
+                                const dist = familiar.mesh.position.distanceTo(enemy.position);
+                                return dist < closest.dist ? { enemy, dist } : closest;
+                            }, { enemy: null, dist: Infinity });
+                            
+                            if (nearest.enemy && nearest.dist < 20) {
+                                const direction = new THREE.Vector3()
+                                    .subVectors(nearest.enemy.position, familiar.mesh.position)
+                                    .normalize();
                                 
-                                if (nearest.enemy && nearest.dist < 20) {
-                                    const direction = new THREE.Vector3()
-                                        .subVectors(nearest.enemy.position, familiar.mesh.position)
-                                        .normalize();
-                                    
-                                    const projectile = new THREE.Mesh(
-                                        new THREE.SphereGeometry(0.15, 8, 8),
-                                        new THREE.MeshStandardMaterial({
-                                            color: familiar.type.color,
-                                            emissive: familiar.type.color,
-                                            emissiveIntensity: 1
-                                        })
-                                    );
-                                    projectile.position.copy(familiar.mesh.position);
-                                    scene.add(projectile);
-                                    
-                                    familiar.projectiles.push({
-                                        mesh: projectile,
-                                        direction,
-                                        spawnTime: now,
-                                        damage: familiar.type.damage
-                                    });
-                                }
-                            }
-                            break;
-                            
-                        case 'heal':
-                            // Heal player
-                            gameState.health = Math.min(gameState.maxHealth, gameState.health + familiar.type.healAmount);
-                            break;
-                            
-                        case 'collect':
-                            // Collect nearby powerups
-                            powerups.forEach((p, pidx) => {
-                                if (familiar.mesh.position.distanceTo(p.mesh.position) < familiar.type.collectRange) {
-                                    p.type.effect();
-                                    if (p.type.duration) {
-                                        const endTime = Date.now() + p.type.duration;
-                                        gameState.activePowerups.push({ ...p.type, endTime });
-                                    }
-                                    scene.remove(p.mesh);
-                                    scene.remove(p.ring);
-                                    powerups.splice(pidx, 1);
-                                }
-                            });
-                            break;
-                            
-                        case 'tank':
-                            // Attack nearby enemies
-                            enemies.forEach(enemy => {
-                                if (familiar.mesh.position.distanceTo(enemy.position) < 3) {
-                                    enemy.health -= familiar.type.damage;
-                                }
-                            });
-                            break;
-                            
-                        case 'chain':
-                            // Lightning chain attack
-                            if (enemies.length > 0) {
-                                const nearby = enemies.filter(e => 
-                                    familiar.mesh.position.distanceTo(e.position) < 15
-                                ).slice(0, familiar.type.chainCount);
+                                const projectile = new THREE.Mesh(
+                                    new THREE.SphereGeometry(0.15, 8, 8),
+                                    new THREE.MeshStandardMaterial({
+                                        color: familiar.type.color,
+                                        emissive: familiar.type.color,
+                                        emissiveIntensity: 1
+                                    })
+                                );
+                                projectile.position.copy(familiar.mesh.position);
+                                scene.add(projectile);
                                 
-                                nearby.forEach(enemy => {
-                                    enemy.health -= familiar.type.damage;
+                                familiar.projectiles.push({
+                                    mesh: projectile,
+                                    direction,
+                                    spawnTime: now,
+                                    damage: familiar.type.damage
                                 });
                             }
-                            break;
+                        }
+                    } else if (familiar.type.ability === 'tank') {
+                        // Tank capybara melee attacks nearby enemies
+                        enemies.forEach(enemy => {
+                            if (familiar.mesh.position.distanceTo(enemy.position) < 3) {
+                                enemy.health -= familiar.type.damage;
+                            }
+                        });
+                    } else if (familiar.type.ability === 'chain') {
+                        // Lightning chain attack
+                        if (enemies.length > 0) {
+                            const nearby = enemies.filter(e => 
+                                familiar.mesh.position.distanceTo(e.position) < 15
+                            ).slice(0, familiar.type.chainCount);
+                            
+                            nearby.forEach(enemy => {
+                                enemy.health -= familiar.type.damage;
+                                
+                                // Visual lightning effect
+                                const lightning = new THREE.Mesh(
+                                    new THREE.CylinderGeometry(0.1, 0.1, familiar.mesh.position.distanceTo(enemy.position), 4),
+                                    new THREE.MeshStandardMaterial({
+                                        color: 0xffff88,
+                                        emissive: 0xffff00,
+                                        emissiveIntensity: 2,
+                                        transparent: true,
+                                        opacity: 0.8
+                                    })
+                                );
+                                lightning.position.copy(familiar.mesh.position).lerp(enemy.position, 0.5);
+                                lightning.lookAt(enemy.position);
+                                lightning.rotation.x = Math.PI / 2;
+                                scene.add(lightning);
+                                setTimeout(() => scene.remove(lightning), 100);
+                            });
+                        }
                     }
                 }
                 
@@ -2512,7 +2962,7 @@
         // ===== PROJECTILES =====
         const projectiles = [];
         function createProjectile() {
-            const weapon = WEAPONS[currentWeaponIndex];
+            const weapon = getUpgradedWeapon();
             
             if (gameState.ammo < weapon.ammoUse) {
                 document.getElementById('shootButton').classList.add('disabled');
@@ -2585,8 +3035,8 @@
         }
 
         function updateWeaponDisplay() {
-            const weapon = WEAPONS[currentWeaponIndex];
-            document.getElementById('weaponName').textContent = weapon.name;
+            const weapon = getUpgradedWeapon();
+            document.getElementById('weaponName').textContent = WEAPONS[currentWeaponIndex].name;
             const rateDesc = weapon.fireRate < 80 ? 'Very Fast' : weapon.fireRate < 150 ? 'Fast' : weapon.fireRate < 250 ? 'Medium' : 'Slow';
             document.getElementById('weaponStats').textContent = `DMG: ${weapon.damage} | Rate: ${rateDesc} | Ammo: ${weapon.ammoUse}`;
         }
@@ -2696,7 +3146,7 @@
                         Math.pow(camera.position.z - trap.mesh.position.z, 2)
                     );
                     
-                    if (dist < 1.8 && !gameState.shieldActive) {
+                    if (dist < 1.8 && !gameState.shieldActive && !gameState.inSafeRoom) {
                         gameState.health -= 0.5;
                     }
                 }
@@ -2711,7 +3161,106 @@
             gameState.inSafeRoom = inRoom;
             document.getElementById('safeRoomIndicator').style.display = inRoom ? 'block' : 'none';
             document.getElementById('answerInSafeRoom').style.display = inRoom ? 'flex' : 'none';
+            
+            // Check if near weapon bench
+            const benchX = SAFE_ROOM.x - 4;
+            const benchZ = SAFE_ROOM.z;
+            const distToBench = Math.sqrt(
+                Math.pow(camera.position.x - benchX, 2) + 
+                Math.pow(camera.position.z - benchZ, 2)
+            );
+            
+            const nearBench = distToBench < 3 && inRoom;
+            
+            // Show upgrade button when near bench
+            if (nearBench && !document.getElementById('upgradePrompt')) {
+                const prompt = document.createElement('div');
+                prompt.id = 'upgradePrompt';
+                prompt.style.cssText = `
+                    position: fixed;
+                    top: 60%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    font-size: 16px;
+                    font-weight: bold;
+                    color: #8dc464;
+                    text-shadow: 0 0 15px #8dc464;
+                    padding: 12px 24px;
+                    background: rgba(20, 40, 20, 0.95);
+                    border: 2px solid #8dc464;
+                    border-radius: 10px;
+                    z-index: 50;
+                    pointer-events: none;
+                    cursor: pointer;
+                `;
+                prompt.textContent = '🔧 Press to Upgrade Weapons';
+                document.body.appendChild(prompt);
+                
+                // Make it clickable
+                prompt.style.pointerEvents = 'all';
+                prompt.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    showWeaponUpgrades();
+                });
+            } else if (!nearBench && document.getElementById('upgradePrompt')) {
+                document.getElementById('upgradePrompt').remove();
+            }
         }
+
+        function showWeaponUpgrades() {
+            gameState.paused = true;
+            const modal = document.getElementById('weaponUpgradeModal');
+            document.getElementById('upgradeScore').textContent = gameState.score;
+            
+            const container = document.getElementById('upgradeOptions');
+            container.innerHTML = '';
+            
+            const upgrades = [
+                { type: 'damage', name: '💥 Damage', desc: '+5 damage per level' },
+                { type: 'fireRate', name: '⚡ Fire Rate', desc: '-15ms cooldown per level' },
+                { type: 'projectileSpeed', name: '🚀 Projectile Speed', desc: '+0.2 speed per level' },
+                { type: 'ammoEfficiency', name: '🎯 Ammo Efficiency', desc: '-1 ammo cost (min 1)' }
+            ];
+            
+            upgrades.forEach(upgrade => {
+                const level = weaponUpgrades[upgrade.type];
+                const cost = level < 5 ? UPGRADE_COSTS[upgrade.type][level] : null;
+                const canAfford = cost ? gameState.score >= cost : false;
+                
+                const option = document.createElement('div');
+                option.className = 'upgrade-option';
+                option.innerHTML = `
+                    <div class="upgrade-info">
+                        <div class="upgrade-name">${upgrade.name}</div>
+                        <div class="upgrade-level">Level: ${level}/5 | ${upgrade.desc}</div>
+                    </div>
+                    <button class="upgrade-button ${level >= 5 ? 'max-level' : (!canAfford ? 'cannot-afford' : '')}" 
+                            data-type="${upgrade.type}">
+                        ${level >= 5 ? 'MAX' : `${cost} pts`}
+                    </button>
+                `;
+                
+                const button = option.querySelector('.upgrade-button');
+                if (level < 5 && canAfford) {
+                    button.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        if (upgradeWeapon(upgrade.type)) {
+                            showWeaponUpgrades(); // Refresh
+                        }
+                    });
+                }
+                
+                container.appendChild(option);
+            });
+            
+            modal.style.display = 'flex';
+        }
+
+        document.getElementById('closeUpgrade').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            document.getElementById('weaponUpgradeModal').style.display = 'none';
+            gameState.paused = false;
+        });
 
         // ===== QUESTIONS =====
         function showQuestion(inSafeRoom) {
@@ -2848,7 +3397,7 @@
         let shootInterval;
         document.getElementById('shootButton').addEventListener('touchstart', (e) => {
             e.preventDefault();
-            const weapon = WEAPONS[currentWeaponIndex];
+            const weapon = getUpgradedWeapon();
             createProjectile();
             shootInterval = setInterval(createProjectile, gameState.godBeamActive ? 20 : weapon.fireRate);
         }, { passive: false });
@@ -3088,8 +3637,8 @@
         for (let i = 0; i < 4; i++) createEnemy();
         for (let i = 0; i < 2; i++) createTrap();
         
-        // Give player a starting familiar
-        createFamiliar(0); // Fire Drake
+        // Give player a starting capybara familiar
+        createFamiliar(0); // Fire Capybara
         
         // Initialize weapon display
         updateWeaponDisplay();
