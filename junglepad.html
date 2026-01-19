@@ -183,6 +183,34 @@
             transform: scale(0.95);
         }
         
+        #weaponSwitchButton {
+            position: absolute;
+            bottom: 240px;
+            right: 40px;
+            width: 70px;
+            height: 70px;
+            background: radial-gradient(circle at 30% 30%, rgba(100, 200, 220, 0.6), rgba(60, 160, 180, 0.4));
+            border: 3px solid #64c8dc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 10px;
+            z-index: 15;
+            box-shadow: 0 0 25px rgba(100, 200, 220, 0.5);
+            touch-action: none;
+            color: #fff;
+        }
+        
+        #weaponSwitchButton .icon {
+            font-size: 24px;
+        }
+        
+        #weaponSwitchButton:active {
+            transform: scale(0.95);
+        }
+        
         /* ===== UI PANELS ===== */
         #ui {
             position: absolute;
@@ -244,6 +272,32 @@
             border: 1px solid rgba(140, 220, 100, 0.4);
             box-shadow: 0 0 20px rgba(100, 200, 100, 0.3);
             pointer-events: none;
+        }
+        
+        #weaponDisplay {
+            position: absolute;
+            top: 120px;
+            left: 10px;
+            background: linear-gradient(135deg, rgba(20, 40, 20, 0.95), rgba(30, 60, 30, 0.9));
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 5;
+            border: 1px solid rgba(140, 220, 100, 0.4);
+            box-shadow: 0 0 20px rgba(100, 200, 100, 0.3);
+            pointer-events: none;
+            min-width: 160px;
+        }
+        
+        #weaponDisplay .weapon-name {
+            font-weight: bold;
+            color: #8dc464;
+            margin-bottom: 4px;
+        }
+        
+        #weaponDisplay .weapon-stat {
+            font-size: 10px;
+            color: #aaa;
         }
         
         #powerupsPanel {
@@ -457,6 +511,12 @@
             <div class="stat">Level: <span id="level">1</span></div>
             <div class="stat">Enemies: <span id="enemyCount">0</span></div>
             <div class="stat">✓ <span id="correct">0</span> | ✗ <span id="wrong">0</span></div>
+            <div class="stat">Familiars: <span id="familiarCount">0</span></div>
+        </div>
+        
+        <div id="weaponDisplay">
+            <div class="weapon-name" id="weaponName">🎯 Basic Rifle</div>
+            <div class="weapon-stat" id="weaponStats">DMG: 10 | Rate: Fast</div>
         </div>
         
         <div id="powerupsPanel">
@@ -491,6 +551,11 @@
         </button>
         
         <button id="questionButton">❓</button>
+        
+        <button id="weaponSwitchButton">
+            <div class="icon">🔄</div>
+            <div>WEAPON</div>
+        </button>
         
         <button id="answerInSafeRoom">📝</button>
         
@@ -565,6 +630,130 @@
 
         const ARENA_SIZE = 80;
         const SAFE_ROOM = { x: 0, z: 60, width: 16, depth: 16 };
+
+        // ===== WEAPON SYSTEM =====
+        const WEAPONS = [
+            { 
+                name: '🎯 Basic Rifle', 
+                damage: 10, 
+                fireRate: 120, 
+                projectileSpeed: 0.8, 
+                projectileSize: 0.2,
+                ammoUse: 1,
+                spread: 0,
+                projectilesPerShot: 1,
+                color: 0xffee88
+            },
+            { 
+                name: '⚡ Rapid Blaster', 
+                damage: 5, 
+                fireRate: 40, 
+                projectileSpeed: 1.0, 
+                projectileSize: 0.15,
+                ammoUse: 1,
+                spread: 0.05,
+                projectilesPerShot: 1,
+                color: 0x88eeff
+            },
+            { 
+                name: '💥 Shotgun', 
+                damage: 8, 
+                fireRate: 200, 
+                projectileSpeed: 0.6, 
+                projectileSize: 0.18,
+                ammoUse: 3,
+                spread: 0.15,
+                projectilesPerShot: 5,
+                color: 0xff8844
+            },
+            { 
+                name: '🎪 Sniper', 
+                damage: 40, 
+                fireRate: 300, 
+                projectileSpeed: 1.5, 
+                projectileSize: 0.25,
+                ammoUse: 5,
+                spread: 0,
+                projectilesPerShot: 1,
+                color: 0xff44ff
+            },
+            { 
+                name: '🌀 Plasma Cannon', 
+                damage: 15, 
+                fireRate: 80, 
+                projectileSpeed: 0.7, 
+                projectileSize: 0.3,
+                ammoUse: 2,
+                spread: 0.02,
+                projectilesPerShot: 1,
+                color: 0x44ff88
+            }
+        ];
+        
+        let currentWeaponIndex = 0;
+
+        // ===== FAMILIAR SYSTEM =====
+        const FAMILIAR_TYPES = [
+            {
+                name: '🐉 Fire Drake',
+                color: 0xff4444,
+                size: 0.6,
+                speed: 0.12,
+                ability: 'attack',
+                damage: 5,
+                cooldown: 2000,
+                orbitDistance: 3,
+                description: 'Shoots fireballs at enemies'
+            },
+            {
+                name: '💚 Healing Sprite',
+                color: 0x44ff44,
+                size: 0.5,
+                speed: 0.15,
+                ability: 'heal',
+                healAmount: 2,
+                cooldown: 3000,
+                orbitDistance: 2.5,
+                description: 'Heals you over time'
+            },
+            {
+                name: '✨ Loot Fairy',
+                color: 0xffdd44,
+                size: 0.4,
+                speed: 0.2,
+                ability: 'collect',
+                collectRange: 8,
+                cooldown: 1000,
+                orbitDistance: 2,
+                description: 'Collects nearby powerups'
+            },
+            {
+                name: '⚔️ Battle Golem',
+                color: 0x8844ff,
+                size: 0.8,
+                speed: 0.1,
+                ability: 'tank',
+                damage: 8,
+                defense: 0.5,
+                cooldown: 1500,
+                orbitDistance: 4,
+                description: 'Attacks enemies and blocks damage'
+            },
+            {
+                name: '⚡ Lightning Wisp',
+                color: 0x44ddff,
+                size: 0.45,
+                speed: 0.18,
+                ability: 'chain',
+                damage: 6,
+                chainCount: 3,
+                cooldown: 2500,
+                orbitDistance: 2.8,
+                description: 'Lightning chains between enemies'
+            }
+        ];
+        
+        const familiars = [];
 
         // ===== THREE.JS SETUP =====
         const scene = new THREE.Scene();
@@ -1783,9 +1972,45 @@
                         setTimeout(() => victory.remove(), 3000);
                     }
                 } else {
-                    // Regular enemy behavior
-                    const dir = new THREE.Vector3().subVectors(camera.position, enemy.position).normalize();
-                    enemy.position.addScaledVector(dir, enemy.enemyType.speed);
+                    // Regular enemy behavior with improved pathfinding
+                    const toPlayer = new THREE.Vector3().subVectors(camera.position, enemy.position);
+                    const distToPlayer = toPlayer.length();
+                    toPlayer.normalize();
+                    
+                    // Obstacle avoidance - check for nearby enemies
+                    let avoidanceVector = new THREE.Vector3();
+                    enemies.forEach(otherEnemy => {
+                        if (otherEnemy !== enemy) {
+                            const toOther = new THREE.Vector3().subVectors(enemy.position, otherEnemy.position);
+                            const distToOther = toOther.length();
+                            if (distToOther < 3 && distToOther > 0) {
+                                // Add repulsion from nearby enemies
+                                toOther.normalize();
+                                avoidanceVector.add(toOther.multiplyScalar(1 / distToOther));
+                            }
+                        }
+                    });
+                    
+                    // Combine movement toward player with avoidance
+                    const finalDirection = toPlayer.add(avoidanceVector.multiplyScalar(0.5)).normalize();
+                    
+                    // Different movement patterns based on distance
+                    if (distToPlayer < 5) {
+                        // Close range - aggressive pursuit
+                        enemy.position.addScaledVector(finalDirection, enemy.enemyType.speed * 1.3);
+                    } else if (distToPlayer < 15) {
+                        // Medium range - normal speed with slight zigzag
+                        const zigzag = new THREE.Vector3(
+                            Math.sin(Date.now() * 0.002 + idx) * 0.02,
+                            0,
+                            Math.cos(Date.now() * 0.002 + idx) * 0.02
+                        );
+                        enemy.position.addScaledVector(finalDirection.add(zigzag), enemy.enemyType.speed);
+                    } else {
+                        // Long range - slightly slower, more cautious
+                        enemy.position.addScaledVector(finalDirection, enemy.enemyType.speed * 0.8);
+                    }
+                    
                     enemy.mesh.rotation.y += 0.04;
                     
                     if (enemy.position.distanceTo(camera.position) < enemy.enemyType.size + 1 && !gameState.shieldActive) {
@@ -1801,6 +2026,12 @@
                         enemies.splice(idx, 1);
                         gameState.score += 10;
                         if (Math.random() < 0.3) createPowerup(enemy.position);
+                        
+                        // Chance to spawn familiar on enemy death
+                        if (Math.random() < 0.05 && familiars.length < 3) {
+                            const familiarType = Math.floor(Math.random() * FAMILIAR_TYPES.length);
+                            createFamiliar(familiarType);
+                        }
                     }
                 }
             });
@@ -1808,6 +2039,182 @@
             // Spawn regular enemies
             const maxEnemies = bosses.length > 0 ? 5 : (3 + gameState.level);
             while (enemies.length < maxEnemies && bosses.length === 0) createEnemy();
+        }
+
+        // ===== FAMILIAR SYSTEM =====
+        function createFamiliar(type) {
+            const familiar = FAMILIAR_TYPES[type];
+            
+            // Create familiar mesh
+            const geometry = new THREE.SphereGeometry(familiar.size, 16, 16);
+            const material = new THREE.MeshStandardMaterial({
+                color: familiar.color,
+                emissive: familiar.color,
+                emissiveIntensity: 0.6,
+                metalness: 0.5,
+                roughness: 0.4
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(camera.position);
+            mesh.castShadow = true;
+            scene.add(mesh);
+            
+            // Add wings or details based on type
+            if (familiar.ability === 'attack') {
+                // Add wings for drake
+                for (let side = -1; side <= 1; side += 2) {
+                    const wing = new THREE.Mesh(
+                        new THREE.ConeGeometry(familiar.size * 0.5, familiar.size, 8),
+                        new THREE.MeshStandardMaterial({ color: familiar.color, transparent: true, opacity: 0.7 })
+                    );
+                    wing.rotation.z = side * Math.PI / 2;
+                    wing.position.set(side * familiar.size * 0.8, 0, 0);
+                    mesh.add(wing);
+                }
+            } else if (familiar.ability === 'heal') {
+                // Add glow rings for sprite
+                const ring = new THREE.Mesh(
+                    new THREE.TorusGeometry(familiar.size * 0.8, familiar.size * 0.15, 8, 16),
+                    new THREE.MeshStandardMaterial({ 
+                        color: familiar.color, 
+                        emissive: familiar.color,
+                        emissiveIntensity: 1,
+                        transparent: true, 
+                        opacity: 0.6 
+                    })
+                );
+                ring.rotation.x = Math.PI / 2;
+                mesh.add(ring);
+            }
+            
+            familiars.push({
+                mesh,
+                type: familiar,
+                angle: Math.random() * Math.PI * 2,
+                lastAbilityUse: 0,
+                projectiles: []
+            });
+            
+            document.getElementById('familiarCount').textContent = familiars.length;
+        }
+
+        function updateFamiliars() {
+            familiars.forEach((familiar, idx) => {
+                // Orbit around player
+                familiar.angle += 0.02;
+                const orbitX = camera.position.x + Math.cos(familiar.angle + idx * (Math.PI * 2 / familiars.length)) * familiar.type.orbitDistance;
+                const orbitZ = camera.position.z + Math.sin(familiar.angle + idx * (Math.PI * 2 / familiars.length)) * familiar.type.orbitDistance;
+                const orbitY = camera.position.y + Math.sin(Date.now() * 0.003 + idx) * 0.3;
+                
+                // Smooth movement
+                familiar.mesh.position.lerp(new THREE.Vector3(orbitX, orbitY, orbitZ), 0.15);
+                familiar.mesh.rotation.y += 0.05;
+                
+                // Ability cooldown check
+                const now = Date.now();
+                if (now - familiar.lastAbilityUse > familiar.type.cooldown) {
+                    familiar.lastAbilityUse = now;
+                    
+                    switch(familiar.type.ability) {
+                        case 'attack':
+                            // Shoot at nearest enemy
+                            if (enemies.length > 0) {
+                                const nearest = enemies.reduce((closest, enemy) => {
+                                    const dist = familiar.mesh.position.distanceTo(enemy.position);
+                                    return dist < closest.dist ? { enemy, dist } : closest;
+                                }, { enemy: null, dist: Infinity });
+                                
+                                if (nearest.enemy && nearest.dist < 20) {
+                                    const direction = new THREE.Vector3()
+                                        .subVectors(nearest.enemy.position, familiar.mesh.position)
+                                        .normalize();
+                                    
+                                    const projectile = new THREE.Mesh(
+                                        new THREE.SphereGeometry(0.15, 8, 8),
+                                        new THREE.MeshStandardMaterial({
+                                            color: familiar.type.color,
+                                            emissive: familiar.type.color,
+                                            emissiveIntensity: 1
+                                        })
+                                    );
+                                    projectile.position.copy(familiar.mesh.position);
+                                    scene.add(projectile);
+                                    
+                                    familiar.projectiles.push({
+                                        mesh: projectile,
+                                        direction,
+                                        spawnTime: now,
+                                        damage: familiar.type.damage
+                                    });
+                                }
+                            }
+                            break;
+                            
+                        case 'heal':
+                            // Heal player
+                            gameState.health = Math.min(gameState.maxHealth, gameState.health + familiar.type.healAmount);
+                            break;
+                            
+                        case 'collect':
+                            // Collect nearby powerups
+                            powerups.forEach((p, pidx) => {
+                                if (familiar.mesh.position.distanceTo(p.mesh.position) < familiar.type.collectRange) {
+                                    p.type.effect();
+                                    if (p.type.duration) {
+                                        const endTime = Date.now() + p.type.duration;
+                                        gameState.activePowerups.push({ ...p.type, endTime });
+                                    }
+                                    scene.remove(p.mesh);
+                                    scene.remove(p.ring);
+                                    powerups.splice(pidx, 1);
+                                }
+                            });
+                            break;
+                            
+                        case 'tank':
+                            // Attack nearby enemies
+                            enemies.forEach(enemy => {
+                                if (familiar.mesh.position.distanceTo(enemy.position) < 3) {
+                                    enemy.health -= familiar.type.damage;
+                                }
+                            });
+                            break;
+                            
+                        case 'chain':
+                            // Lightning chain attack
+                            if (enemies.length > 0) {
+                                const nearby = enemies.filter(e => 
+                                    familiar.mesh.position.distanceTo(e.position) < 15
+                                ).slice(0, familiar.type.chainCount);
+                                
+                                nearby.forEach(enemy => {
+                                    enemy.health -= familiar.type.damage;
+                                });
+                            }
+                            break;
+                    }
+                }
+                
+                // Update familiar projectiles
+                familiar.projectiles.forEach((proj, pidx) => {
+                    proj.mesh.position.addScaledVector(proj.direction, 0.5);
+                    
+                    // Check collision with enemies
+                    enemies.forEach(enemy => {
+                        if (proj.mesh.position.distanceTo(enemy.position) < enemy.enemyType.size) {
+                            enemy.health -= proj.damage;
+                            scene.remove(proj.mesh);
+                            familiar.projectiles.splice(pidx, 1);
+                        }
+                    });
+                    
+                    // Remove old projectiles
+                    if (now - proj.spawnTime > 2000) {
+                        scene.remove(proj.mesh);
+                        familiar.projectiles.splice(pidx, 1);
+                    }
+                });
+            });
         }
 
         // ===== POWERUPS =====
@@ -1819,7 +2226,13 @@
             { name: '⚡ Speed Boost', duration: 8000, effect: () => { gameState.speedMultiplier = 1.8; }, end: () => { gameState.speedMultiplier = 1; } },
             { name: '🛡️ Shield', duration: 10000, effect: () => { gameState.shieldActive = true; }, end: () => { gameState.shieldActive = false; } },
             { name: '🌟 God Beam', duration: 6000, effect: () => { gameState.godBeamActive = true; document.getElementById('shootButton').classList.add('active'); }, end: () => { gameState.godBeamActive = false; document.getElementById('shootButton').classList.remove('active'); } },
-            { name: '🦍 Titan Mode', duration: 12000, effect: () => { gameState.titanMode = true; camera.position.y = 3; }, end: () => { gameState.titanMode = false; camera.position.y = 1.6; } }
+            { name: '🦍 Titan Mode', duration: 12000, effect: () => { gameState.titanMode = true; camera.position.y = 3; }, end: () => { gameState.titanMode = false; camera.position.y = 1.6; } },
+            { name: '✨ Familiar Token', effect: () => { 
+                if (familiars.length < 5) {
+                    const familiarType = Math.floor(Math.random() * FAMILIAR_TYPES.length);
+                    createFamiliar(familiarType);
+                }
+            } }
         ];
 
         function createPowerup(position) {
@@ -1896,43 +2309,58 @@
         // ===== PROJECTILES =====
         const projectiles = [];
         function createProjectile() {
-            if (gameState.ammo <= 0) {
+            const weapon = WEAPONS[currentWeaponIndex];
+            
+            if (gameState.ammo < weapon.ammoUse) {
                 document.getElementById('shootButton').classList.add('disabled');
                 return;
             }
             document.getElementById('shootButton').classList.remove('disabled');
-            gameState.ammo--;
+            gameState.ammo -= weapon.ammoUse;
             
-            const geometry = new THREE.SphereGeometry(0.2, 12, 12);
-            const material = new THREE.MeshStandardMaterial({ 
-                color: 0xffee88,
-                emissive: 0xffdd44,
-                emissiveIntensity: 1.5,
-                metalness: 0.8,
-                roughness: 0.2
-            });
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.copy(camera.position);
-            
-            const direction = new THREE.Vector3(0, 0, -1);
-            direction.applyQuaternion(camera.quaternion);
-            
-            scene.add(mesh);
-            
-            projectiles.push({ 
-                mesh, 
-                direction, 
-                spawnTime: Date.now()
-            });
+            // Create multiple projectiles for weapons like shotgun
+            for (let i = 0; i < weapon.projectilesPerShot; i++) {
+                const geometry = new THREE.SphereGeometry(weapon.projectileSize, 12, 12);
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: weapon.color,
+                    emissive: weapon.color,
+                    emissiveIntensity: 1.5,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(camera.position);
+                
+                const direction = new THREE.Vector3(0, 0, -1);
+                direction.applyQuaternion(camera.quaternion);
+                
+                // Add spread
+                if (weapon.spread > 0) {
+                    direction.x += (Math.random() - 0.5) * weapon.spread;
+                    direction.y += (Math.random() - 0.5) * weapon.spread;
+                    direction.normalize();
+                }
+                
+                scene.add(mesh);
+                
+                projectiles.push({ 
+                    mesh, 
+                    direction, 
+                    spawnTime: Date.now(),
+                    speed: weapon.projectileSpeed,
+                    damage: weapon.damage
+                });
+            }
         }
 
         function updateProjectiles() {
             projectiles.forEach((proj, idx) => {
-                proj.mesh.position.addScaledVector(proj.direction, 0.8);
+                proj.mesh.position.addScaledVector(proj.direction, proj.speed);
                 
                 enemies.forEach((enemy, enemyIdx) => {
                     if (proj.mesh.position.distanceTo(enemy.position) < enemy.enemyType.size) {
-                        enemy.health -= gameState.godBeamActive ? 30 : 10;
+                        const finalDamage = (gameState.godBeamActive ? proj.damage * 3 : proj.damage);
+                        enemy.health -= finalDamage;
                         scene.remove(proj.mesh);
                         projectiles.splice(idx, 1);
                     }
@@ -1945,6 +2373,19 @@
                     projectiles.splice(idx, 1);
                 }
             });
+        }
+
+        // Weapon switching
+        function switchWeapon() {
+            currentWeaponIndex = (currentWeaponIndex + 1) % WEAPONS.length;
+            updateWeaponDisplay();
+        }
+
+        function updateWeaponDisplay() {
+            const weapon = WEAPONS[currentWeaponIndex];
+            document.getElementById('weaponName').textContent = weapon.name;
+            const rateDesc = weapon.fireRate < 80 ? 'Very Fast' : weapon.fireRate < 150 ? 'Fast' : weapon.fireRate < 250 ? 'Medium' : 'Slow';
+            document.getElementById('weaponStats').textContent = `DMG: ${weapon.damage} | Rate: ${rateDesc} | Ammo: ${weapon.ammoUse}`;
         }
 
         // ===== BOMBS =====
@@ -2204,13 +2645,15 @@
         let shootInterval;
         document.getElementById('shootButton').addEventListener('touchstart', (e) => {
             e.preventDefault();
+            const weapon = WEAPONS[currentWeaponIndex];
             createProjectile();
-            shootInterval = setInterval(createProjectile, gameState.godBeamActive ? 20 : 120);
+            shootInterval = setInterval(createProjectile, gameState.godBeamActive ? 20 : weapon.fireRate);
         }, { passive: false });
         
         document.getElementById('shootButton').addEventListener('touchend', (e) => { e.preventDefault(); clearInterval(shootInterval); }, { passive: false });
         document.getElementById('bombButton').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); dropBomb(); }, { passive: false });
         document.getElementById('questionButton').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); showQuestion(false); }, { passive: false });
+        document.getElementById('weaponSwitchButton').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); switchWeapon(); }, { passive: false });
         document.getElementById('answerInSafeRoom').addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); if (gameState.inSafeRoom) showQuestion(true); }, { passive: false });
 
         // ===== MINIMAP =====
@@ -2266,6 +2709,58 @@
                 gameState.health = Math.min(gameState.maxHealth, gameState.health + 30);
                 gameState.ammo = Math.min(gameState.maxAmmo, gameState.ammo + 20);
                 for (let i = 0; i < newLevel; i++) createTrap();
+                
+                // Unlock weapons at certain levels
+                if (newLevel === 2 && currentWeaponIndex === 0) {
+                    // Unlock Rapid Blaster
+                    const message = document.createElement('div');
+                    message.style.cssText = `
+                        position: fixed;
+                        top: 35%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #88eeff;
+                        text-shadow: 0 0 20px rgba(136, 238, 255, 1);
+                        z-index: 100;
+                        pointer-events: none;
+                        background: rgba(20, 40, 20, 0.95);
+                        padding: 16px 32px;
+                        border-radius: 12px;
+                        border: 2px solid #88eeff;
+                    `;
+                    message.textContent = '⚡ Rapid Blaster Unlocked!';
+                    document.body.appendChild(message);
+                    setTimeout(() => message.remove(), 3000);
+                }
+                
+                // Award familiar every 3 levels
+                if (newLevel % 3 === 0 && familiars.length < 3) {
+                    const familiarType = Math.floor(Math.random() * FAMILIAR_TYPES.length);
+                    createFamiliar(familiarType);
+                    
+                    const message = document.createElement('div');
+                    message.style.cssText = `
+                        position: fixed;
+                        top: 45%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        font-size: 20px;
+                        font-weight: bold;
+                        color: #ffdd44;
+                        text-shadow: 0 0 20px rgba(255, 221, 68, 1);
+                        z-index: 100;
+                        pointer-events: none;
+                        background: rgba(20, 40, 20, 0.95);
+                        padding: 12px 24px;
+                        border-radius: 10px;
+                        border: 2px solid #ffdd44;
+                    `;
+                    message.textContent = `${FAMILIAR_TYPES[familiarType].name} Joined!`;
+                    document.body.appendChild(message);
+                    setTimeout(() => message.remove(), 3000);
+                }
                 
                 // Spawn boss at levels 3, 6, 9
                 if (newLevel % 3 === 0 && bosses.length === 0) {
@@ -2345,6 +2840,7 @@
             updateMinimap();
             updateSafeRoomStatus();
             checkLevelProgress();
+            updateFamiliars();
 
             // UI
             document.getElementById('health').textContent = Math.ceil(gameState.health);
@@ -2379,6 +2875,13 @@
         generateLevel(1);
         for (let i = 0; i < 4; i++) createEnemy();
         for (let i = 0; i < 2; i++) createTrap();
+        
+        // Give player a starting familiar
+        createFamiliar(0); // Fire Drake
+        
+        // Initialize weapon display
+        updateWeaponDisplay();
+        
         animate();
 
         window.addEventListener('resize', () => {
